@@ -8,6 +8,8 @@ use Test::Warnings ':report_warnings';
 use FindBin '$Bin';
 use lib "$FindBin::Bin/lib", "$Bin/../external/os-autoinst-common/lib";
 use OpenQA::Test::TimeLimit '120';
+require "$Bin/../os-autoinst-openvswitch";
+use OVS;
 
 my %allowed_types = (
     'text/x-perl' => 1,
@@ -31,6 +33,9 @@ for my $script (sort keys %types) {
     $rc = $?;
     isnt($rc, 0, "Calling '$script invalid-command --invalid-flag' returns non-zero exit code")
       or diag "Output: $out";
+}
+
+subtest 'openvswitch' => sub {
 }
 
 done_testing;
