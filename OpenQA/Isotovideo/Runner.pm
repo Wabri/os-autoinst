@@ -33,6 +33,9 @@ has [qw(backend command_handler)];
 # the loop status
 has loop => 1;
 
+# track if we're in graceful shutdown (waiting for always_run modules)
+has graceful_shutdown => 0;
+
 use constant {
     EXIT_STATUS_OK => 0,
     EXIT_STATUS_ERR_NO_TESTS => 100,
@@ -130,16 +133,20 @@ sub handle_commands ($self) {
             $self->testfd(undef);
             $self->loop(0);
             $self->stop_autotest();
+            # if shutdown mode than stop the backend
+            if ($self->graceful_shutdown) {    # uncoverable statement
+                bmwqemu::diag('isotovideo: stopping backend');    # uncoverable statement
+                $self->backend->stop if defined $self->backend;    # uncoverable statement
+                $self->stop_commands('graceful shutdown');    # uncoverable statement
+            }
     });
     # uncoverable statement count:1
     # uncoverable statement count:2
     # uncoverable statement count:3
     # uncoverable statement count:4
     $command_handler->on(signal => sub ($event, $sig) {
-            $self->backend->stop if defined $self->backend;    # uncoverable statement
-            $self->stop_commands("received signal $sig");    # uncoverable statement
-            $self->stop_autotest();    # uncoverable statement
-            _exit(1);    # uncoverable statement
+            $self->graceful_shutdown(1);    # uncoverable statement
+            bmwqemu::diag('isotovideo: backend shutdown');    # uncoverable statement
     });
     $self->setup_signal_handler;
 
