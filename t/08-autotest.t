@@ -234,6 +234,47 @@ subtest 'test always_rollback flag' => sub {
         is $reverts_done, 0, 'no snapshots loaded after fatal failure';
         is $snapshots_made, 0, 'no snapshots made after fatal failure';
     };
+    snapshot_subtest 'SIGTERM cancellation allows always_run modules to execute' => sub {
+        local %autotest::tests = ();
+        local @autotest::testorder = ();
+        local %autotest::scheduled_basenames = ();
+        local $autotest::last_milestone = undef;
+        local $autotest::last_milestone_active_consoles = [];
+        local $autotest::activated_consoles = [];
+        local $autotest::last_milestone_console = undef;
+        local $autotest::fatal_reason = undef;
+
+        loadtest $_ for qw(start next);
+        my ($normal_test, $cleanup_test) = @autotest::testorder;
+
+        $mock_autotest->redefine(query_isotovideo => sub ($command, $arguments) {
+                return 1 if $command eq 'backend_can_handle' && $arguments->{function} eq 'snapshots';
+                return {};
+        });
+
+        $mock_basetest->redefine(test_flags => sub ($self) {
+                return {always_run => 1} if $self == $cleanup_test;
+                return {};
+        });
+
+        $mock_basetest->redefine(runtest => sub ($self) {
+                # Simulate SIGTERM during first test
+                if ($self == $normal_test) {
+                    autotest::handle_sigterm('TERM');
+                }
+                return 1;
+        });
+
+        $vm_stopped = 0;
+        my $output = combined_from { autotest::run_all };
+        like $output, qr/autotest received signal TERM.*saving results/, 'SIGTERM logged';
+        like $output, qr/scheduled stop of overall test execution after test cancellation/, 'cancellation scheduled';
+        like $output, qr{starting next tests/next\.pm}, 'executed always_run cleanup test';
+        ($died, $completed) = get_tests_done;
+        is $died, 0, 'tests not considered died';
+        is $completed, 0, 'tests did not complete successfully';
+        ok $vm_stopped, 'VM was stopped eventually';
+    };
     snapshot_subtest 'fails by default if snapshots are not supported and always_rollback is requested' => sub {
         $mock_basetest->redefine(test_flags => {always_rollback => 1});
         $mock_autotest->redefine(query_isotovideo => sub { 0 });

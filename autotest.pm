@@ -452,7 +452,8 @@ sub handle_sigterm ($sig) {    # uncoverable statement
         $current_test->result('canceled');    # uncoverable statement
         $current_test->save_test_result();    # uncoverable statement
     }
-    _exit(1);    # uncoverable statement
+    $fatal_reason = 'after test cancellation';    # uncoverable statement
+    bmwqemu::diag("scheduled stop of overall test execution $fatal_reason");    # uncoverable statement
 }
 
 sub start_process () {
@@ -548,7 +549,7 @@ sub runalltests () {
     bmwqemu::diag 'Snapshots are ' . ($snapshots_supported ? '' : 'not ') . 'supported';
 
     write_test_order();
-    my $fatal_reason;
+    $fatal_reason = undef;
 
     for (my $testindex = 0; $testindex <= $#testorder; $testindex++) {
         my $t = $testorder[$testindex];
@@ -629,6 +630,7 @@ sub runalltests () {
     if ($fatal_reason) {
         bmwqemu::diag "stopping overall test execution $fatal_reason";
         bmwqemu::stop_vm();
+        $fatal_reason = undef;
         return 0;
     }
     return 1;
