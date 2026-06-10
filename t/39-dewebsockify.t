@@ -137,7 +137,7 @@ subtest 'WebSocket handshake fails (no HTTP code)' => sub {
     mock_build_ws_tx($mock_ua, 'MockTxFailNoCode');
     start_dewebsockify();
     accept_client('dummy_socket_1');
-    ok grep(/Unable to upgrade to WebSocket connection/, @log_messages),
+    ok grep { /Unable to upgrade to WebSocket connection/ } @log_messages,
       'WebSocket upgrade failed without HTTP code';
     like $log_messages[-1], qr/Client accepted/,
       'First client accepted before failing handshake';
@@ -161,7 +161,7 @@ subtest 'WebSocket handshake succeeds' => sub {
 
     start_dewebsockify();
     accept_client('dummy_socket_1');
-    ok grep(/WebSocket connection established/, @log_messages),
+    ok grep { /WebSocket connection established/ } @log_messages,
       'WebSocket connection established';
 
     $WS_ON_TEXT->(undef, 'dummy text message');
@@ -169,7 +169,7 @@ subtest 'WebSocket handshake succeeds' => sub {
     $WS_ON_BINARY->(undef, 'dummy binary data');
     pass 'Binary message received via WebSocket';
     $WS_ON_FINISH->(undef, 1000, 'Normal closure');
-    ok grep(/WebSocket closed with status 1000/, @log_messages),
+    ok grep { /WebSocket closed with status 1000/ } @log_messages,
       'WebSocket closed as expected';
 };
 
@@ -179,7 +179,7 @@ subtest 'WebSocket handshake fails with error code' => sub {
     mock_build_ws_tx($mock_ua, 'MockTxFailWithCode');
     start_dewebsockify();
     accept_client('dummy_socket_1');
-    ok grep(/WebSocket 403 response: Forbidden/, @log_messages),
+    ok grep { (/WebSocket 403 response: Forbidden/, @log_messages) },
       'WebSocket upgrade failed with error code';
 };
 
@@ -194,10 +194,10 @@ subtest 'Client connection closure' => sub {
 
     start_dewebsockify();
     accept_client('dummy_socket_1');
-    ok grep(/WebSocket connection established/, @log_messages),
+    ok grep { /WebSocket connection established/ } @log_messages,
       'WebSocket connection established';
     $stream_close_cb->('dummy_stream') if $stream_close_cb;
-    ok grep(/Client closed connection/, @log_messages),
+    ok grep { (/Client closed connection/, @log_messages) },
       'Client connection closure logged';
 };
 
@@ -215,10 +215,10 @@ subtest 'Client connection error' => sub {
 
     start_dewebsockify();
     accept_client('dummy_socket_1');
-    ok grep(/WebSocket connection established/, @log_messages),
+    ok grep { /WebSocket connection established/ } @log_messages,
       'WebSocket connection established';
     $stream_error_cb->('dummy_stream', 'Something went wrong') if $stream_error_cb;
-    ok grep(/Client error: Something went wrong/, @log_messages),
+    ok grep { (/Client error: Something went wrong/, @log_messages) },
       'Client error was logged';
 };
 

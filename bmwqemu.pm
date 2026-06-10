@@ -114,7 +114,7 @@ sub save_vars (%args) {
         $write_vars = {};
         my $hide_re = '^_SECRET_|_PASSWORD';
         $hide_re .= "|$vars{_HIDE_SECRETS_REGEX}" if $vars{_HIDE_SECRETS_REGEX};
-        $write_vars->{$_} = $vars{$_} for (grep !/($hide_re)/, keys %vars);
+        $write_vars->{$_} = $vars{$_} for grep { !/$hide_re/ } keys %vars;
     }
 
     # make sure the JSON is sorted

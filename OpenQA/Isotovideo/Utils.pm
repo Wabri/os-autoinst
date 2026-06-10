@@ -179,7 +179,7 @@ sub clone_git ($local_path, $clone_url, $clone_depth, $branch, $dir, $dir_variab
     my $depth_args = $cache_dir ? '' : "--depth='$clone_depth'";    # cannot use `--depth` with $cache_dir
     if (!$cache_dir) {    # cannot use `--branch` with $cache_dir so just move to fallback directly
         my @out = qx{$clone_cmd $depth_args $branch_args $source_url 2>&1};
-        return $handle_output->($?, @out) unless ($branch && grep /fatal: Remote branch .* not found in upstream origin/, @out);
+        return $handle_output->($?, @out) unless ($branch && grep { /fatal: Remote branch .* not found in upstream origin/ } @out);
     }
 
     # if cloning with `--branch=…` does not work, just clone the default branch instead and fetch and check out the missing
@@ -189,7 +189,7 @@ sub clone_git ($local_path, $clone_url, $clone_depth, $branch, $dir, $dir_variab
     if ($direct_fetch) {
         bmwqemu::diag "Fetching '$branch' from origin manually";
         @out = qx{git -C "$local_path" fetch origin "$branch" 2>&1 && git -C "$local_path" checkout FETCH_HEAD 2>&1};
-        return $handle_output->($?, @out) unless (grep /could(n't| not) find remote ref/, @out);
+        return $handle_output->($?, @out) unless (grep { /could(n't| not) find remote ref/ } @out);
     }
 
     # if fetching the specified rev did not work, take yet another approach (maybe we just misspelled, though)
@@ -202,7 +202,7 @@ sub clone_git ($local_path, $clone_url, $clone_depth, $branch, $dir, $dir_variab
         $clone_depth *= 2;
         @out = qx[git -C $local_path fetch --progress --depth=$clone_depth 2>&1];
         $handle_output->($?, @out);
-        die "Could not find '$branch' in complete history in cloned Git repository \"$dir\"" if grep /remote: Total 0/, @out;
+        die "Could not find '$branch' in complete history in cloned Git repository \"$dir\"" if grep { /remote: Total 0/ } @out;
     }
     @out = qx{git -C $local_path checkout $branch};
     bmwqemu::diag "@out" if @out;
