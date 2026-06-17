@@ -44,9 +44,9 @@ is $driver->extract_assets, undef, 'extract_assets';
 ok $driver->start_vm, 'start_vm';
 is $driver->mouse_hide, 0, 'mouse_hide';
 $out = combined_from { is $driver->stop_backend, undef, 'stop_backend' };
+is $driver->stop, undef, 'stop';
 like "@diag", qr/backend.*exited/, 'exit logged';
 reset_logs();
-is $driver->stop, undef, 'stop';
 
 my $process = process(process_id => 42, _status => (5 << 8));
 reset_logs;
