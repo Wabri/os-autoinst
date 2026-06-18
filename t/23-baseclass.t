@@ -730,6 +730,11 @@ subtest 'adjusting pipe size for external video encoder ' => sub {
         $bmwqemu::vars{XRES} = undef;
         $bmwqemu::vars{YRES} = undef;
     };
+    pipe my $dummy_r, my $dummy_w;
+    my $pipe_set_supported = fcntl $dummy_w, Fcntl::F_SETPIPE_SZ, 30000;
+    close $dummy_r;
+    close $dummy_w;
+
     my $video_encoders = $baseclass->{video_encoders} = {};
     $bmwqemu::vars{EXTERNAL_VIDEO_ENCODER_CMD} = 'true -o %OUTPUT_FILE_NAME% "trailing arg"';
     $bmwqemu::vars{XRES} = '100';
@@ -740,7 +745,7 @@ subtest 'adjusting pipe size for external video encoder ' => sub {
     my $launched_video_encoder = $video_encoders->{$video_encoder_pids[0]};
     my $pipe_sz = fcntl $launched_video_encoder->{pipe}, Fcntl::F_GETPIPE_SZ, 0;
     subtest 'pipe size set' => sub {
-        ok $pipe_sz >= 100 * 100 * 3, 'pipe size set';
+        ok $pipe_set_supported ? ($pipe_sz >= 100 * 100 * 3) : ($pipe_sz < 100 * 100 * 3), 'pipe size set';
     } or always_explain $pipe_sz;
 
     # now a bigger size to trigger a warning
