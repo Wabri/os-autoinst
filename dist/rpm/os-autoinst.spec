@@ -139,11 +139,7 @@ BuildRequires:  expect
 Requires:       %main_requires
 # For dynamically generating UEFI/secureboot assets, not available in all
 # OS+arch combinations
-%if 0%{?suse_version} > 0 && 0%{?suse_version} < 1600
-%ifnarch ppc64 ppc64le
-Requires:       virt-firmware
-%endif
-%else
+%if 0%{?suse_version} >= 1600 || 0%{?suse_version} == 0
 Requires:       virt-firmware
 %endif
 %if %{with ocr}
