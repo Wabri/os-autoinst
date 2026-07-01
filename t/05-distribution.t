@@ -91,6 +91,7 @@ subtest 'pretty_serial_marker' => sub {
     });
 
     $typed_string = '';
+    $d->{_serial_marker_level}->{'test-console'} = 2;
     $d->script_run('foo');
     like $typed_string, qr/export __OA_MARK=.*; foo\n/, 'Level 2 uses export marker';
 
@@ -360,6 +361,38 @@ subtest 'serial_terminal_redirection_guard' => sub {
     $d->{_serial_marker_level}->{'test-console'} = 3;
     $d->install_serial_marker_hook(3);
     like $typed, qr/__oa_prompt\(\) \{ r=\$\?; if \[ -n "\$OA_NO_MARKER" \]/, '__oa_prompt must capture the exit status r=$? as the absolute first statement to prevent internal conditional checks from overwriting it';
+};
+
+subtest 'terminal_session_boundary' => sub {
+    my $d = distribution->new;
+    my $mock_testapi = Test::MockModule->new('testapi');
+    my $mock_bmwqemu = Test::MockModule->new('bmwqemu');
+    $mock_bmwqemu->noop('log_call');
+    my $typed = '';
+    $mock_testapi->redefine(query_isotovideo => sub { });
+    $mock_testapi->redefine(type_string => sub { $typed .= $_[0] });
+    $mock_testapi->redefine(is_serial_terminal => sub { 0 });
+    $mock_testapi->redefine(current_console => sub { 'x11' });
+    $mock_testapi->redefine(get_var => sub { $_[0] eq 'PRETTY_SERIAL_MARKER' ? 1 : undef });
+    $mock_testapi->redefine(check_screen => sub { undef });
+    $testapi::serialdev = 'ttyS0';
+
+    $mock_testapi->redefine(wait_serial => sub ($regexp, @) {
+            return 'BASH:4.4:' if ref($regexp) eq 'Regexp' && 'BASH:4.4:' =~ $regexp;
+            return 'OA:DONE-abcd-0-';
+    });
+
+    $d->script_run('first_cmd');
+    like $typed, qr/__oa_prompt/, 'pretty serial marker hook is initially configured and installed on the terminal session';
+
+    $typed = '';
+    $d->script_run('second_cmd');
+    unlike $typed, qr/__oa_prompt/, 'hook re-installation is skipped on subsequent commands if cached status is stale';
+
+    $d->invalidate_serial_marker_hook('x11');
+    $typed = '';
+    $d->script_run('third_cmd');
+    like $typed, qr/__oa_prompt/, 'hook is successfully re-installed on the next command after cached status is explicitly invalidated';
 };
 
 done_testing;

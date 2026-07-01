@@ -623,11 +623,21 @@ subtest 'upload_logs' => sub {
 };
 
 subtest 'script_sudo' => sub {
+    my $mock_testapi = Test::MockModule->new('testapi');
+    $mock_testapi->redefine(hashed_string => 'XXX');
+    $mock_testapi->redefine(is_serial_terminal => 1);
+
     script_sudo 'rm /boot/grub/menu.lst';
     is_deeply $cmds, [
         {
-            text => "sudo rm /boot/grub/menu.lst; echo XXX > /dev/null\n",
-            cmd => 'backend_type_string'
+            cmd => 'backend_type_string',
+            text => 'sudo rm /boot/grub/menu.lst; echo XXX-$?-',
+            max_interval => 250
+        },
+        {
+            cmd => 'backend_type_string',
+            text => "\n",
+            max_interval => 250
         },
         {
             mustmatch => 'sudo-passwordprompt',
@@ -645,8 +655,8 @@ subtest 'script_sudo' => sub {
     ];
     $cmds = [];
     script_sudo('ls /', 0);
-    is $cmds->[0]{text}, "sudo ls /\n", 'text argument of script_sudo matched';
-    is_deeply $cmds->[0], {text => "sudo ls /\n", cmd => 'backend_type_string'}, 'sudo command is typed';
+    is $cmds->[0]{text}, 'sudo ls /', 'text argument of script_sudo matched';
+    is_deeply $cmds->[0], {text => 'sudo ls /', cmd => 'backend_type_string', max_interval => 250}, 'sudo command is typed';
     ok $cmds->[2]{secret}, 'password is treated as secret';
     $cmds = [];
 };
@@ -1283,6 +1293,7 @@ $bmwqemu::vars{CASEDIR} = 'foo';
 is get_test_data('foo'), undef, 'get_test_data can be called';
 $bmwqemu::vars{CASEDIR} = 't';
 like get_test_data('console.ref.json'), qr/area/, 'get_test_data can be called';
+$fake_exit = 0;
 lives_ok { become_root } 'become_root can be called';
 lives_ok { hold_key('ret') } 'hold_key can be called';
 lives_ok { release_key('ret') } 'release_key can be called';
