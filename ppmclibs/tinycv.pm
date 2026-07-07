@@ -13,7 +13,8 @@ require Exporter;
 require DynaLoader;
 
 our @ISA = qw(Exporter DynaLoader);
-our @EXPORT = qw();
+
+our @EXPORT = qw();    ## no critic (Modules::ProhibitAutomaticExportation)
 
 our $VERSION = '1.0';
 
