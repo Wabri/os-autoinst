@@ -420,11 +420,10 @@ is hit. Default timeout is 30s.
 
 =cut
 
-sub assert_screen {    # no:style:signatures
-    my ($mustmatch) = shift;
+sub assert_screen ($mustmatch, @params) {
     my $timeout;
-    $timeout = shift if (@_ % 2);
-    my %args = (timeout => $timeout // $bmwqemu::default_timeout, @_);
+    $timeout = shift @params if (@params % 2);
+    my %args = (timeout => $timeout // $bmwqemu::default_timeout, @params);
     bmwqemu::log_call(mustmatch => $mustmatch, %args);
     return _check_or_assert($mustmatch, 0, %args);
 }
@@ -448,11 +447,10 @@ Returns matched needle or C<undef> if timeout is hit. Default timeout is 0s.
 
 =cut
 
-sub check_screen {    # no:style:signatures
-    my ($mustmatch) = shift;
+sub check_screen ($mustmatch, @params) {
     my $timeout;
-    $timeout = shift if (@_ % 2);
-    my %args = (timeout => $timeout // 0, @_);
+    $timeout = shift @params if (@params % 2);
+    my %args = (timeout => $timeout // 0, @params);
     bmwqemu::log_call(mustmatch => $mustmatch, %args);
     return _check_or_assert($mustmatch, 1, %args);
 }
@@ -599,8 +597,7 @@ similarity_level is 50.
 
 =cut
 
-sub wait_screen_change : prototype(&@) {    # no:style:signatures
-    my ($callback, $timeout, %args) = @_;
+sub wait_screen_change : prototype(&@) ($callback, $timeout = undef, %args) {
     $timeout ||= 10;
     $args{similarity_level} //= 50;
 
@@ -636,13 +633,12 @@ Example:
 
 =cut
 
-sub assert_screen_change : prototype(&@) {    # no:style:signatures
+sub assert_screen_change : prototype(&@) ($coderef, @args) {
 
     # Need to parse code reference and pass to the method explicitly as
     # wait_screen_change uses prototype which expects code block as an argument
     # This resolves compile time issues
-    my ($coderef, @args) = @_;
-    wait_screen_change(\&{$coderef}, @_) or die 'assert_screen_change failed to detect a screen change';
+    wait_screen_change(\&{$coderef}, @args) or die 'assert_screen_change failed to detect a screen change';
 }
 
 
@@ -661,10 +657,10 @@ Default timeout is 30s, default stilltime is 7s.
 
 =cut
 
-sub wait_still_screen {    # no:style:signatures
-    my $stilltime = looks_like_number($_[0]) ? shift : 7;
-    my $timeout = (@_ % 2) ? shift : $bmwqemu::default_timeout;
-    my %args = (stilltime => $stilltime, timeout => $timeout, @_);
+sub wait_still_screen (@params) {
+    my $stilltime = looks_like_number($params[0]) ? shift @params : 7;
+    my $timeout = (@params % 2) ? shift @params : $bmwqemu::default_timeout;
+    my %args = (stilltime => $stilltime, timeout => $timeout, @params);
     $args{similarity_level} //= 47;
     bmwqemu::log_call(%args);
     $timeout = $args{timeout} = bmwqemu::scale_timeout($args{timeout});
@@ -942,8 +938,7 @@ should work on *nix operating systems with a configured serial device.>
 
 =cut
 
-sub assert_script_run {    # no:style:signatures
-    my $cmd = shift;
+sub assert_script_run ($cmd, @params) {
     my %args = compat_args(
         {
             # assert_script_run originally had the implicit default timeout of
@@ -953,7 +948,7 @@ sub assert_script_run {    # no:style:signatures
             fail_message => '',
             quiet => testapi::get_var('_QUIET_SCRIPT_CALLS'),
             max_interval => DEFAULT_MAX_INTERVAL
-        }, ['timeout', 'fail_message'], @_);
+        }, ['timeout', 'fail_message'], @params);
 
     bmwqemu::log_call(cmd => $cmd, %args);
     my $ret = $distri->script_run($cmd, timeout => $args{timeout}, quiet => $args{quiet}, max_interval => $args{max_interval});
@@ -992,15 +987,14 @@ device C<$serialdev>.
 
 =cut
 
-sub script_run {    # no:style:signatures
-    my $cmd = shift;
+sub script_run ($cmd, @params) {
     my %args = compat_args(
         {
             timeout => $bmwqemu::default_timeout,
             output => '',
             quiet => testapi::get_var('_QUIET_SCRIPT_CALLS'),
             max_interval => DEFAULT_MAX_INTERVAL
-        }, ['timeout'], @_);
+        }, ['timeout'], @params);
 
     bmwqemu::log_call(cmd => $cmd, %args);
     my $ret = $distri->script_run($cmd, %args);
@@ -1107,15 +1101,14 @@ and can be tweaked by setting the C<$wait> positional parameter.
 
 =cut
 
-sub script_output {    # no:style:signatures
-    my $script = shift;
+sub script_output ($script, @params) {
     my %args = testapi::compat_args(
         {
             timeout => undef,
             proceed_on_failure => undef,    # fail on error by default
             quiet => testapi::get_var('_QUIET_SCRIPT_CALLS'),
             type_command => undef,
-        }, ['timeout'], @_);
+        }, ['timeout'], @params);
 
     return $distri->script_output($script, %args);
 }
@@ -1398,12 +1391,9 @@ enter a command line.
 
 =cut
 
-sub type_string {    # no:style:signatures
-
-    # special argument handling for backward compat
-    my $string = shift;
+sub type_string ($string, @params) {
     # backward compat
-    my %args = (@_ == 1) ? (max_interval => $_[0]) : @_;
+    my %args = (@params == 1) ? (max_interval => $params[0]) : @params;
     $string .= "\n" if $args{lf};
 
     if (is_serial_terminal) {
@@ -1473,8 +1463,8 @@ You can pass the same optional parameters as for C<type_string> function.
 
 =cut
 
-sub enter_cmd {    # no:style:signatures
-    type_string shift, lf => 1, @_;
+sub enter_cmd ($cmd, @params) {
+    type_string $cmd, lf => 1, @params;
 }
 
 =head1 mouse support
