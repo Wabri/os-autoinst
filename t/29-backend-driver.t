@@ -30,12 +30,12 @@ sub reset_logs () { @diag = (); @fctinfo = () }
 
 my $driver;
 logger->handle->autoflush(1);
-my $out = combined_from { $driver = backend::driver->new('null') };
+combined_from { $driver = backend::driver->new('null') };
 like "@diag", qr/channel_out.+channel_in/, 'log output for backend driver creation';
 reset_logs();
 
 ok $driver, 'can create driver';
-$out = combined_from { ok $driver->start, 'can start driver' };
+combined_from { ok $driver->start, 'can start driver' };
 like "@diag", qr/channel_out.+channel_in/, 'log content again';
 reset_logs();
 
@@ -43,13 +43,15 @@ isnt $driver->{backend_process}, {}, 'backend process was started' or explain $d
 is $driver->extract_assets, undef, 'extract_assets';
 ok $driver->start_vm, 'start_vm';
 is $driver->mouse_hide, 0, 'mouse_hide';
-$out = combined_from { is $driver->stop_backend, undef, 'stop_backend' };
+combined_from {
+    is $driver->stop_backend, undef, 'stop_backend';
+    is $driver->stop, undef, 'stop';
+};
 like "@diag", qr/backend.*exited/, 'exit logged';
 reset_logs();
-is $driver->stop, undef, 'stop';
 
 my $process = process(process_id => 42, _status => (5 << 8));
-reset_logs;
+reset_logs();
 backend::driver::_collect_orphan(undef, $process);
 like $fctinfo[0], qr/collected.*pid.*42.*exit status.*5/, 'message for collected orphan logged';
 
