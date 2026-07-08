@@ -295,6 +295,7 @@ sub configure_pflash ($self, $vars) {
     return $self unless $vars->{UEFI};
     my $fw = $vars->{UEFI_PFLASH_CODE};
     if ($fw) {
+        $fw = path($vars->{UEFI_PFLASH_CODE})->to_abs;
         $bdc->add_pflash_drive('pflash-code', $fw, $self->get_img_size($fw))
           ->unit(0)
           ->readonly('on');
