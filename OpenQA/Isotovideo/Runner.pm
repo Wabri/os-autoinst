@@ -23,6 +23,7 @@ use autotest ();
 use needle ();
 use commands ();
 use distribution ();
+use IO::Handle;
 
 has [qw(cmd_srv_process cmd_srv_fd cmd_srv_port)];
 
@@ -230,10 +231,8 @@ sub checkout_code ($self) {
 }
 
 sub _flush_std ($) {
-    select STDERR;
-    $| = 1;
-    select STDOUT;    # default
-    $| = 1;
+    STDERR->autoflush(1);
+    STDOUT->autoflush(1);
 }
 
 sub _init_bmwqemu ($, @args) {
