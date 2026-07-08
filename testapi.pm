@@ -336,6 +336,7 @@ sub _check_backend_response ($rsp, $check, $timeout, $mustmatch) {
                 overall => (!$rsp->{saveresult} && $check) ? undef : 'fail',
                 frame => $l->{frame},
             );
+            bmwqemu::update_line_number();
         }
         # Handle case where a stall was detected: fail if this is an
         # assert_screen, warn if it's a check_screen
