@@ -46,7 +46,7 @@ sub process_file ($filename) {
     my $image_data = b64_encode($pngpath->slurp, '&#10;');
 
     open $SVGFILE, '>', path($pp->dirname, "${name}.svg");
-    select $SVGFILE;
+    select $SVGFILE;    ## no critic (InputOutput::ProhibitOneArgSelect)
 
     # The generated file should be identical to the svg file as saved with inkscape as 'Standard SVG'
     printf <<~"EOM";
@@ -101,7 +101,7 @@ sub process_file ($filename) {
     print <<~"EOM";
        </svg>
        EOM
-    select STDOUT;
+    select STDOUT;    ## no critic (InputOutput::ProhibitOneArgSelect)
     close $SVGFILE;
     return 0;
 }
