@@ -108,11 +108,10 @@ e.g. by making use of the openQA asset download feature.
 sub _debug_python_version () {
     state $python_loaded = 0;
     return if $python_loaded++;
-    my $code = <<~'EOM';
-    use Inline::Python;
-    return Inline::Python::py_eval('__import__("sys").version', 0);
-    EOM
-    my $debug = eval $code;
+    my $debug = eval {
+        require Inline::Python;
+        return Inline::Python::py_eval('__import__("sys").version', 0);
+    };
     bmwqemu::diag 'Using python version ' . $debug;
 }
 
@@ -132,7 +131,7 @@ references for them.
 =cut
 
 sub _lua_use ($perlmod, $import = undef) {
-    eval "use $perlmod ()";
+    eval "use $perlmod ()";    ## no critic (BuiltinFunctions::ProhibitStringyEval
     if ($@) { die "Could not load '$perlmod': $@" }
     my %exports;
     no strict 'refs';    ## no critic (TestingAndDebugging::ProhibitNoStrict, TestingAndDebugging::ProhibitProlongedStrictureOverride)
@@ -180,7 +179,7 @@ sub _load_lua () {
     EOLUA
     return lua_eval('_VERSION', 0);
     EOM
-    my $debug = eval $code;
+    my $debug = eval $code;    ## no critic (BuiltinFunctions::ProhibitStringyEval)
     bmwqemu::diag "Using Lua version $debug";
     lua_set('use', \&_lua_use);
 }
@@ -306,7 +305,7 @@ sub loadtest ($script, %args) {
     state %loaded;    # keep track of loaded packages
                       # note: Never load a test module that would result in the same package twice as this would only lead to warnings
                       #       like "Subroutine run redefined at …".
-    eval _make_test_code_to_eval($script_path, $script, $name, \$is_python) unless $loaded{$script_path}++;
+    eval _make_test_code_to_eval($script_path, $script, $name, \$is_python) unless $loaded{$script_path}++; ## no critic (BuiltinFunctions::ProhibitStringyEval)
     if (my $err = $@) {
         if ($is_python) {
             try { require Inline; import Inline Python => 'sys.stderr.flush()'; }
