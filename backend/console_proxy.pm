@@ -38,7 +38,7 @@ sub AUTOLOAD {    # no:style:signatures
             console => $self->{console},
             function => $function,
             args => $args,
-            wantarray => wantarray,
+            wantarray => wantarray,    ## no critic (Community::Wantarray)
         };
 
         bmwqemu::log_call(wrapped_call => $wrapped_call);
@@ -51,7 +51,7 @@ sub AUTOLOAD {    # no:style:signatures
         # get more screenshots from consoles, especially from x3270 on s390
         $autotest::current_test->take_screenshot;
 
-        return wantarray ? @{$wrapped_retval->{result}} : $wrapped_retval->{result};
+        return wantarray ? @{$wrapped_retval->{result}} : $wrapped_retval->{result};    ## no critic (Community::Wantarray)
     };
 
     # this is why we can't use a signature for this function, goto

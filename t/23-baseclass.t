@@ -142,7 +142,7 @@ subtest 'SSH utilities' => sub {
                     shift->{connected} = 0;
                     return 1;
             });
-            $self->mock(error => sub { wantarray ? @net_ssh2_error : ($net_ssh2_error[0] // 0) });
+            $self->mock(error => sub { wantarray ? @net_ssh2_error : ($net_ssh2_error[0] // 0) });    ## no critic (Community::Wantarray)
             $self->mock(sock => sub ($self) {
                     unless ($self->{sock}) {
                         my $mock_sock = Test::MockObject->new();
