@@ -372,12 +372,12 @@ sub STORE ($self, $key, $val) {
 sub FIRSTKEY ($self) {
     my $data = $self->{data};
     my @k = keys %$data;    # reset
-    my $next = each %$data;
+    my $next = each %$data;    ## no critic (Community::Each)
 }
 
 sub NEXTKEY ($self, $last) {
     my $data = $self->{data};
-    my $next = each %$data;
+    my $next = each %$data;    ## no critic (Community::Each)
 }
 
 sub FETCH ($self, $key) {
