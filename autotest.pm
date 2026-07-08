@@ -131,8 +131,8 @@ references for them.
 =cut
 
 sub _lua_use ($perlmod, $import = undef) {
-    eval "use $perlmod ()";    ## no critic (BuiltinFunctions::ProhibitStringyEval
-    if ($@) { die "Could not load '$perlmod': $@" }
+    my $result = eval "use $perlmod ()";    ## no critic (BuiltinFunctions::ProhibitStringyEval)
+    if (!$result) { die "Could not load '$perlmod': $@" }
     my %exports;
     no strict 'refs';    ## no critic (TestingAndDebugging::ProhibitNoStrict, TestingAndDebugging::ProhibitProlongedStrictureOverride)
     my @export = @{"${perlmod}::EXPORT"};
@@ -305,7 +305,7 @@ sub loadtest ($script, %args) {
     state %loaded;    # keep track of loaded packages
                       # note: Never load a test module that would result in the same package twice as this would only lead to warnings
                       #       like "Subroutine run redefined at …".
-    eval _make_test_code_to_eval($script_path, $script, $name, \$is_python) unless $loaded{$script_path}++; ## no critic (BuiltinFunctions::ProhibitStringyEval)
+    eval _make_test_code_to_eval($script_path, $script, $name, \$is_python) unless $loaded{$script_path}++; ## no critic (BuiltinFunctions::ProhibitStringyEval, ErrorHandling::RequireCheckingReturnValueOfEval)
     if (my $err = $@) {
         if ($is_python) {
             try { require Inline; import Inline Python => 'sys.stderr.flush()'; }
