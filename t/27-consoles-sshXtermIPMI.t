@@ -44,7 +44,7 @@ _setup_rfb_magic;
 
 $s->mock(read => sub { $_[1] = $s->mocked_read; length $_[1] });
 $s->mock($_ => sub { push @printed, $_[1] }) for qw(print write);
-$vnc_mock->redefine(_read_socket => sub { substr(${$_[1]}, $_[3], $_[2]) = $s->mocked_read; length ${$_[1]} });
+$vnc_mock->redefine(_read_socket => sub { substr ${$_[1]}, $_[3], $_[2], $s->mocked_read; length ${$_[1]} });
 $inet_mock->redefine(new => $s);
 $backend_mock->redefine(do_mc_reset => sub { bmwqemu::diag 'IPMI mc reset success'; });
 $testapi_console_mock->redefine(backend => $backend);
