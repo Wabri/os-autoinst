@@ -171,6 +171,7 @@ sub connect_remote_video ($self, $url) {
         my $dev = ($url =~ m^ustreamer://(.*)^)[0];
         my $sink_name = "raw-sink$dev.raw";
         $sink_name =~ s^/^-^g;
+        $sink_name =~ s^\?.*\.raw^.raw^g;
         my $cmd = $self->_get_ustreamer_cmd($dev, $sink_name);
         my $ffmpeg;
         $self->{ustreamerpid} = open $ffmpeg, '-|', @$cmd

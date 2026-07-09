@@ -309,7 +309,7 @@ subtest 'frame parsing - ustreamer' => sub {
 
     # ustreamer v10 frame, full frame encoded as JPEG
     copy($data_dir . 'ustreamer10-shared-full-frame-jpeg', '/dev/shm/raw-sink-dev-video0.raw');
-    $console->connect_remote({url => 'ustreamer:///dev/video0'});
+    $console->connect_remote({url => 'ustreamer:///dev/video0?format=JPEG'});
 
     $img = tinycv::read($data_dir . 'ustreamer10-shared-full-frame-jpeg.png');
     $received_img = $console->current_screen();
