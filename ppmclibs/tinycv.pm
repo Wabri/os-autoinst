@@ -12,7 +12,7 @@ use Math::Complex 'sqrt';
 require Exporter;
 require DynaLoader;
 
-our @ISA = qw(Exporter DynaLoader);
+use parent qw(Exporter DynaLoader);
 
 our @EXPORT = qw();    ## no critic (Modules::ProhibitAutomaticExportation)
 
