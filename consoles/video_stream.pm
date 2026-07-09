@@ -137,6 +137,8 @@ sub _get_ustreamer_cmd ($self, $url, $sink_name) {
     my $dev = $parsed_url->path;
     my $fps = $parsed_url->query->param('fps') // 5;
     my $format = $parsed_url->query->param('format') // 'UYVY';
+    my $mediadev = $parsed_url->query->param('mediadev');
+    my $mediaentity = $parsed_url->query->param('mediaentity');
     my $swap = ($format =~ /swap$/);
     $format =~ s/swap$//;
     my $cmd = [
@@ -147,6 +149,8 @@ sub _get_ustreamer_cmd ($self, $url, $sink_name) {
         '--persistent',    # smarter watching for reconnecting HDMI, and since ustreamer 6.0 - necessary for --dv-timings to work
         '--dv-timings',    # enable using DV timings (getting resolution, and reacting to changes)
     ];
+    push @$cmd, ('--media-device', $mediadev) if ($mediadev);
+    push @$cmd, ('--media-entity-name', $mediaentity) if ($mediaentity);
     # workaround for https://github.com/raspberrypi/linux/issues/6068
     push @$cmd, qw(--format-swap-rgb 1) if ($swap);
     return $cmd;

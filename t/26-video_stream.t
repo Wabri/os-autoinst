@@ -164,6 +164,15 @@ subtest 'connect stream ustreamer' => sub {
         '-c', 'NOOP',
         '--raw-sink', 'raw-sink-dev-video0.raw', '--raw-sink-rm',
         '--persistent', '--dv-timings', '--format-swap-rgb', '1'], 'correct cmd built for format=RGB24swap';
+    $cmd = $mock_console->original('_get_ustreamer_cmd')->($console, '/dev/video0?fps=5&format=BGR24&mediadev=/dev/media-csi&mediaentity=tc358743 11-000f', 'raw-sink-dev-video0.raw');
+    is_deeply $cmd, [
+        'ustreamer', '--device', '/dev/video0', '-f', '5',
+        '-m', 'BGR24',
+        '-c', 'NOOP',
+        '--raw-sink', 'raw-sink-dev-video0.raw', '--raw-sink-rm',
+        '--persistent', '--dv-timings',
+        '--media-device', '/dev/media-csi',
+        '--media-entity-name', 'tc358743 11-000f'], 'correct cmd built with media device params';
 };
 
 subtest 'frames parsing' => sub {
