@@ -500,8 +500,19 @@ subtest 'check_assert_screen' => sub {
 
     $report_timeout_called = 0;
 
+    subtest 'module step logging' => sub {
+        local $autotest::current_test->{script} = 'dummy';
+        local $autotest::current_test->{category} = 'cat';
+        combined_like {
+            throws_ok { assert_screen('foo', 3, timeout => 2) }
+            qr/no candidate needle/,
+              'error message like expeected';
+        } qr{\Q[step:cat,basetest,16]\E.*called testapi::assert_screen}, 'module step logged in case of failed assert_screen';
+    };
+
     subtest 'handle assert_screen timeout' => sub {
         $cmds = [];
+        $report_timeout_called = 0;
 
         # simulate that we don't want to pause at all and just let it fail
         throws_ok { assert_screen('foo', 3, timeout => 2) }
