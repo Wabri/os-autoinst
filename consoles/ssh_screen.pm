@@ -7,6 +7,7 @@ use Mojo::Base 'consoles::serial_screen', -signatures;
 use Carp 'croak';
 use Net::SSH2 'LIBSSH2_ERROR_EAGAIN';
 use Time::Seconds;
+use Time::HiRes qw(sleep);
 
 has ssh_connection => undef;
 has ssh_channel => undef;
@@ -52,7 +53,7 @@ sub do_read {    # no:style:signatures
           unless $error_seen{$errcode}++;
 
         last if ($args{timeout} == 0);
-        select undef, undef, undef, 0.25;
+        sleep 0.25;
     }
     return undef;
 }
@@ -80,12 +81,12 @@ sub type_string ($self, $nargs) {
 
             croak "Lost SSH connection to SUT: $errcode $errstr"
               if $errcode != LIBSSH2_ERROR_EAGAIN;
-            select undef, undef, undef, 0.1;
+            sleep 0.1;
         } elsif ($chunk < 0) {
             # Old Net::SSH2 error signaling
             croak "Lost SSH connection to SUT: $chunk"
               if $chunk != LIBSSH2_ERROR_EAGAIN;
-            select undef, undef, undef, 0.1;
+            sleep 0.1;
         } else {
             $written += $chunk;
         }
