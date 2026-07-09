@@ -133,12 +133,14 @@ sub _get_ffmpeg_cmd ($self, $url) {
 }
 
 sub _get_ustreamer_cmd ($self, $url, $sink_name) {
-    my $fps = $url =~ s/[\?&]fps=([0-9]+)// ? $1 : 5;
-    my $format = $url =~ s/[\?&]format=([A-Z0-9]+(swap)?)// ? $1 : 'UYVY';
+    my $parsed_url = Mojo::URL->new($url);
+    my $dev = $parsed_url->path;
+    my $fps = $parsed_url->query->param('fps') // 5;
+    my $format = $parsed_url->query->param('format') // 'UYVY';
     my $swap = ($format =~ /swap$/);
     $format =~ s/swap$//;
     my $cmd = [
-        'ustreamer', '--device', $url, '-f', $fps,
+        'ustreamer', '--device', $dev, '-f', $fps,
         '-m', $format,    # specify preferred format
         '-c', 'NOOP',    # do not produce JPEG stream
         '--raw-sink', $sink_name, '--raw-sink-rm',    # raw memsink
