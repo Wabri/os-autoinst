@@ -776,8 +776,8 @@ Return the given variable as array reference (split variable value by , | or ; )
 =cut
 
 sub get_var_array ($var, $default = undef) {
-    my @vars = split /,|;/, $bmwqemu::vars{$var} || '';
-    my @default = split /,|;/, $default || '';
+    my @vars = split /[,;]/, $bmwqemu::vars{$var} || '';
+    my @default = split /[,;]/, $default || '';
     return \@default if !@vars;
     return \@vars;
 }
