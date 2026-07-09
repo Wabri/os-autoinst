@@ -581,6 +581,19 @@ subtest configure_pflash => sub {
 
     %vars = (UEFI => 1, UEFI_PFLASH_VARS => 'vars');
     throws_ok { $proc->configure_pflash(\%vars) } qr{Need UEFI_PFLASH_CODE with UEFI_PFLASH_VARS}, 'Fatal UEFI_PFLASH_VARS without UEFI_PFLASH_CODE';
+
+    @flash = ();
+    my $bios_file = tempfile->spew('bios');
+    %vars = (UEFI => 1, UEFI_PFLASH => 1, BIOS => $bios_file->to_string);
+    my $res_pflash = $proc->configure_pflash(\%vars);
+    is_deeply \@flash, [['pflash', $bios_file->to_string, 4]], 'add_pflash_drive correctly called for UEFI_PFLASH';
+    is $res_pflash, $proc, 'returns self';
+
+    %vars = (UEFI => 1, UEFI_PFLASH => 1, UEFI_PFLASH_CODE => 'code');
+    throws_ok { $proc->configure_pflash(\%vars) } qr{Mixing old and new PFLASH variables}, 'Mixing old and new PFLASH variables (code)';
+
+    %vars = (UEFI => 1, UEFI_PFLASH => 1, UEFI_PFLASH_VARS => 'vars');
+    throws_ok { $proc->configure_pflash(\%vars) } qr{Mixing old and new PFLASH variables}, 'Mixing old and new PFLASH variables (vars)';
 };
 
 subtest connect_qmp => sub {

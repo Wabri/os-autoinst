@@ -726,10 +726,10 @@ sub start_qemu ($self) {
     if ($vars->{UEFI} && ($arch eq 'x86_64')) {
         $vars->{UEFI_PFLASH_CODE} //= find_ovmf;
         $vars->{UEFI_PFLASH_VARS} //= $vars->{UEFI_PFLASH_CODE} =~ s/code/$&=~tr,CcOoDdEe,VvAaRrSs,r/eir;
-        die 'No UEFI firmware can be found! Please specify UEFI_PFLASH_CODE/UEFI_PFLASH_VARS or UEFI_BIOS or install an appropriate package' unless $vars->{UEFI_PFLASH_CODE};
+        die 'No UEFI firmware can be found! Please specify UEFI_PFLASH_CODE/UEFI_PFLASH_VARS or BIOS or UEFI_BIOS or install an appropriate package' unless $vars->{UEFI_PFLASH_CODE};
     }
 
-    foreach my $attribute (qw(KERNEL INITRD)) {
+    foreach my $attribute (qw(KERNEL INITRD BIOS)) {
         if ($vars->{$attribute} && $vars->{$attribute} !~ /^\//) {
             # Non-absolute paths are assumed relative to /usr/share/qemu
             $vars->{$attribute} = '/usr/share/qemu/' . $vars->{$attribute};
@@ -988,6 +988,10 @@ sub start_qemu ($self) {
             }
         }
         sp('boot', join ',', @boot_args) if @boot_args;
+
+        if (!$vars->{UEFI} && $vars->{BIOS}) {
+            sp('bios', $vars->{BIOS});
+        }
 
         foreach my $attribute (qw(KERNEL INITRD APPEND)) {
             sp(lc($attribute), $vars->{$attribute}) if $vars->{$attribute};
