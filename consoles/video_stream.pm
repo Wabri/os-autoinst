@@ -340,7 +340,7 @@ sub _receive_frame_ustreamer ($self) {
 
         # tell ustreamer we are reading, otherwise it won't write new frames
         my $clock = clock_gettime(CLOCK_MONOTONIC);
-        substr($ustreamer_map, $client_clock_offset, 16) = pack 'D', $clock;
+        substr($ustreamer_map, $client_clock_offset, 16, pack('D', $clock));
         # no new frame
         return undef if $self->{ustreamer_last_id} && $id == $self->{ustreamer_last_id};
         $self->{ustreamer_last_id} = $id;
