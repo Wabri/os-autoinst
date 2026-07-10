@@ -49,7 +49,7 @@ $bdc->add_new_drive('hd1', 'virtio-blk', '10G', undef, '4096');
 @gcmdl = $bdc->gen_cmdline();
 is_deeply \@gcmdl, \@cmdl, 'Generate qemu command line for drive with 4k sector size';
 
-@cmdl = [qw(create -f qcow2 raid/hd1 10G)];
+@cmdl = ([qw(create -f qcow2 raid/hd1 10G)]);
 @gcmdl = $bdc->gen_qemu_img_cmdlines();
 is_deeply \@gcmdl, \@cmdl, 'Generate qemu-img command line for single new drive';
 
