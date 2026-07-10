@@ -492,8 +492,6 @@ sub send_key_event_down ($self, $key) { $self->_send_key_event(1, $key) }
 
 sub send_key_event_up ($self, $key) { $self->_send_key_event(0, $key) }
 
-## no critic (HashKeyQuotes)
-
 my $keymap_x11 = {
     'esc' => 0xff1b,
     'down' => 0xff54,
