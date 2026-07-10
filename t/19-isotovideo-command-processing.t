@@ -502,7 +502,7 @@ subtest 'No readable JSON' => sub {
     my $runner = OpenQA::Isotovideo::Runner->new;
     $runner->command_handler($command_handler);
     # We need valid fd's so fileno works but they're never used
-    open my $readable, "$Bin";
+    open my $readable, '<', $Bin;
     $runner->testfd($readable);
     $runner->cmd_srv_fd($readable);
     stderr_like {

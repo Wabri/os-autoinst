@@ -382,7 +382,7 @@ subtest 'input events' => sub {
     $console->mouse_hide({});
 
     $console->disable;
-    ok open($cmds_fh, 'input-commands'), 'open input-commands';
+    ok open($cmds_fh, '<', 'input-commands'), 'open input-commands';
     @cmds = <$cmds_fh>;
     is_deeply \@cmds, [
         "mouse_move 320 420\n",
@@ -402,7 +402,7 @@ subtest 'input events' => sub {
     $console->send_key({key => 'ctrl-x'});
     $console->type_string({text => "some test\n"});
     $console->disable;
-    ok open($cmds_fh, 'input-commands'), 'open input-commands';
+    ok open($cmds_fh, '<', 'input-commands'), 'open input-commands';
     @cmds = <$cmds_fh>;
     is_deeply \@cmds, [
         "a\n",
