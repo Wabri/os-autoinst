@@ -150,20 +150,29 @@ subtest 'connect stream ustreamer' => sub {
         '-c', 'NOOP',
         '--raw-sink', 'raw-sink-dev-video0.raw', '--raw-sink-rm',
         '--persistent', '--dv-timings'], 'correct cmd built for fps=2 and format=BGR24';
-    $cmd = $mock_console->original('_get_ustreamer_cmd')->($console, '/dev/video0&format=BGR24', 'raw-sink-dev-video0.raw');
+    $cmd = $mock_console->original('_get_ustreamer_cmd')->($console, '/dev/video0?format=BGR24', 'raw-sink-dev-video0.raw');
     is_deeply $cmd, [
         'ustreamer', '--device', '/dev/video0', '-f', '5',
         '-m', 'BGR24',
         '-c', 'NOOP',
         '--raw-sink', 'raw-sink-dev-video0.raw', '--raw-sink-rm',
         '--persistent', '--dv-timings'], 'correct cmd built for format=BGR24';
-    $cmd = $mock_console->original('_get_ustreamer_cmd')->($console, '/dev/video0&format=RGB24swap', 'raw-sink-dev-video0.raw');
+    $cmd = $mock_console->original('_get_ustreamer_cmd')->($console, '/dev/video0?format=RGB24swap', 'raw-sink-dev-video0.raw');
     is_deeply $cmd, [
         'ustreamer', '--device', '/dev/video0', '-f', '5',
         '-m', 'RGB24',
         '-c', 'NOOP',
         '--raw-sink', 'raw-sink-dev-video0.raw', '--raw-sink-rm',
         '--persistent', '--dv-timings', '--format-swap-rgb', '1'], 'correct cmd built for format=RGB24swap';
+    $cmd = $mock_console->original('_get_ustreamer_cmd')->($console, '/dev/video0?fps=5&format=BGR24&mediadev=/dev/media-csi&mediaentity=tc358743 11-000f', 'raw-sink-dev-video0.raw');
+    is_deeply $cmd, [
+        'ustreamer', '--device', '/dev/video0', '-f', '5',
+        '-m', 'BGR24',
+        '-c', 'NOOP',
+        '--raw-sink', 'raw-sink-dev-video0.raw', '--raw-sink-rm',
+        '--persistent', '--dv-timings',
+        '--media-device', '/dev/media-csi',
+        '--media-entity-name', 'tc358743 11-000f'], 'correct cmd built with media device params';
 };
 
 subtest 'frames parsing' => sub {
@@ -296,6 +305,16 @@ subtest 'frame parsing - ustreamer' => sub {
     $received_img = $console->current_screen();
     ok $received_img, 'current screen available to read for BGR3 v7 frame' or return;
     is $received_img->similarity($img), 1_000_000, 'received correct BGR3 v7 frame';
+    $console->disable_video;
+
+    # ustreamer v10 frame, full frame encoded as JPEG
+    copy($data_dir . 'ustreamer10-shared-full-frame-jpeg', '/dev/shm/raw-sink-dev-video0.raw');
+    $console->connect_remote({url => 'ustreamer:///dev/video0?format=JPEG'});
+
+    $img = tinycv::read($data_dir . 'ustreamer10-shared-full-frame-jpeg.png');
+    $received_img = $console->current_screen();
+    ok $received_img, 'current screen available to read for JPEG v10 frame' or return;
+    is $received_img->similarity($img), 1_000_000, 'received correct JPEG v10 frame';
     $console->disable_video;
 };
 

@@ -133,18 +133,24 @@ sub _get_ffmpeg_cmd ($self, $url) {
 }
 
 sub _get_ustreamer_cmd ($self, $url, $sink_name) {
-    my $fps = $url =~ s/[\?&]fps=([0-9]+)// ? $1 : 5;
-    my $format = $url =~ s/[\?&]format=([A-Z0-9]+(swap)?)// ? $1 : 'UYVY';
+    my $parsed_url = Mojo::URL->new($url);
+    my $dev = $parsed_url->path;
+    my $fps = $parsed_url->query->param('fps') // 5;
+    my $format = $parsed_url->query->param('format') // 'UYVY';
+    my $mediadev = $parsed_url->query->param('mediadev');
+    my $mediaentity = $parsed_url->query->param('mediaentity');
     my $swap = ($format =~ /swap$/);
     $format =~ s/swap$//;
     my $cmd = [
-        'ustreamer', '--device', $url, '-f', $fps,
+        'ustreamer', '--device', $dev, '-f', $fps,
         '-m', $format,    # specify preferred format
         '-c', 'NOOP',    # do not produce JPEG stream
         '--raw-sink', $sink_name, '--raw-sink-rm',    # raw memsink
         '--persistent',    # smarter watching for reconnecting HDMI, and since ustreamer 6.0 - necessary for --dv-timings to work
         '--dv-timings',    # enable using DV timings (getting resolution, and reacting to changes)
     ];
+    push @$cmd, ('--media-device', $mediadev) if ($mediadev);
+    push @$cmd, ('--media-entity-name', $mediaentity) if ($mediaentity);
     # workaround for https://github.com/raspberrypi/linux/issues/6068
     push @$cmd, qw(--format-swap-rgb 1) if ($swap);
     return $cmd;
@@ -165,6 +171,7 @@ sub connect_remote_video ($self, $url) {
         my $dev = ($url =~ m^ustreamer://(.*)^)[0];
         my $sink_name = "raw-sink$dev.raw";
         $sink_name =~ s^/^-^g;
+        $sink_name =~ s^\?.*\.raw^.raw^g;
         my $cmd = $self->_get_ustreamer_cmd($dev, $sink_name);
         my $ffmpeg;
         $self->{ustreamerpid} = open $ffmpeg, '-|', @$cmd
@@ -318,6 +325,44 @@ sub _receive_frame_ustreamer ($self) {
         #     // 128
         #     ... data
         # } us_memsink_shared_s;
+        #
+        # #define US_MEMSINK_VERSION  ((u32)10)
+        # typedef struct {
+        #     uint    width;
+        #     uint    height;
+        #     uint    format;
+        #     uint    fps;
+        #     bool    key;
+        # } us_memsink_wants_s;
+        #
+        # typedef struct {
+        #     uint64_t     magic;
+        #     uint32_t     version;
+        #     // pad
+        #     uint64_t     id;
+        #     size_t      used;
+        #     // 32
+        #     long double     last_client_ts;
+        #     us_memsink_wants_s  wants;
+        #
+        #     unsigned    width;
+        #     unsigned    height;
+        #     unsigned    format;
+        #     unsigned    stride;
+        #     /* Stride is a bytesperline in V4L2 */ \
+        #     /* https://www.kernel.org/doc/html/v4.14/media/uapi/v4l/pixfmt-v4l2.html */ \
+        #     /* https://medium.com/@oleg.shipitko/what-does-stride-mean-in-image-processing-bba158a72bcd */ \
+        #     bool    online;
+        #     bool    key;
+        #     unsigned    gop;
+        #
+        #     long double     grab_begin_ts;
+        #     long double     grab_end_ts;
+        #     long double     encode_begin_ts;
+        #     long double     encode_end_ts;
+        #     // 160
+        #     ... data
+        # } us_memsink_shared_s;
 
         my ($magic, $version, $id, $used) = unpack 'QLx4QQ', $ustreamer_map;
         # This is US_MEMSINK_MAGIC, but perl considers hex literals over 32bits non-portable
@@ -334,6 +379,10 @@ sub _receive_frame_ustreamer ($self) {
             $client_clock_offset = 32;
             $data_offset = 128;
             $meta_offset = 52;
+        } elsif ($version == 10) {
+            $client_clock_offset = 32;
+            $data_offset = 160;
+            $meta_offset = 68;
         } else {
             die "Unsupported ustreamer version '$version' (only versions 4, 7 and 8 are supported)";
         }
