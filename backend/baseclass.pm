@@ -364,7 +364,7 @@ sub _ffmpeg_banner ($cmd = FFMPEG_BIN . ' -version') { qx{$cmd} // '' if defined
 
 sub _auto_detect_external_video_encoder ($self) {
     my $ffmpeg_banner = _ffmpeg_banner;
-    return DEFAULT_FFMPEG_CMD . ' -c:v libsvtav1 -crf 50 -preset 7' if $ffmpeg_banner =~ qr/--enable-libsvtav1(\s|$)/ and $ffmpeg_banner !~ qr/ffmpeg\sversion\s4\./;
+    return DEFAULT_FFMPEG_CMD . ' -c:v libsvtav1 -crf 50 -preset 7 -b:v 0' if $ffmpeg_banner =~ qr/--enable-libsvtav1(\s|$)/ and $ffmpeg_banner !~ qr/ffmpeg\sversion\s4\./;
     return DEFAULT_FFMPEG_CMD . ' -c:v libvpx-vp9 -crf 35 -b:v 1500k -cpu-used 1' if $ffmpeg_banner =~ qr/--enable-libvpx(\s|$)/;
 }
 
