@@ -368,6 +368,7 @@ sub save_memory_dump ($self, $args) {
     if ($compress_method eq 'bzip2') {
         runcmd('bzip2', "-v$compress_level", "ulogs/$filename");
     }
+    return undef;
 }
 
 sub inflate_balloon ($self) {

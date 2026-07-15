@@ -12,8 +12,7 @@ use Math::Complex 'sqrt';
 require Exporter;
 require DynaLoader;
 
-our @ISA = qw(Exporter DynaLoader);
-our @EXPORT = qw();
+use parent qw(Exporter DynaLoader);
 
 our $VERSION = '1.0';
 
@@ -160,7 +159,7 @@ sub search ($self, $needle, $threshold = undef, $search_ratio = undef, $stopwatc
         if (@candidates && $candidates[0]->{ok}) {
             $best = shift @candidates;
         }
-        if (wantarray) {
+        if (wantarray) {    ## no critic (Community::Wantarray)
             return ($best, \@candidates);
         }
         else {
@@ -172,7 +171,7 @@ sub search ($self, $needle, $threshold = undef, $search_ratio = undef, $stopwatc
         my $found = $self->search_($needle, $threshold, $search_ratio, $stopwatch);
         $stopwatch->lap("** search_: single needle: $needle->{name}") if $stopwatch;
         return undef unless $found;
-        if (wantarray) {
+        if (wantarray) {    ## no critic (Community::Wantarray)
             return ($found, undef) if ($found->{ok});
             return (undef, [$found]);
         }
