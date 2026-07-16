@@ -220,7 +220,7 @@ subtest 'isotovideo with wheels' => sub {
             is 0, checkout_wheels($case_dir, $wheels_dir), 'wheels checkout out';
             load_test_schedule;
             like $diags[0], qr/scheduling ink$i/, 'module from the wheel scheduled';
-            my $ret = eval "Copy::Writer::Content${i}::write()";
+            my $ret = eval { "Copy::Writer::Content${i}"->can('write')->() };
             is $ret, "val$i", 'called function in wheel library returns expected value';
             rmtree "$wheels_dir/writer";
         };

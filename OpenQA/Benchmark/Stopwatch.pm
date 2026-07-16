@@ -7,7 +7,7 @@ use Time::HiRes;
 
 =head1 NAME
 
-Benchmark::Stopwatch - simple timing of stages of your code.
+OpenQA::Benchmark::Stopwatch - simple timing of stages of your code.
 
 =head1 SYNOPSIS
 
