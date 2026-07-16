@@ -185,8 +185,8 @@ sub change_domain_element ($self, @args) {
     else {
         if (ref($tag) eq 'HASH') {
             # for hashes set the attributes
-            while (my ($key, $value) = each %$tag) {
-                $elem->setAttribute($key => $value);
+            foreach my $key (keys %$tag) {
+                $elem->setAttribute($key => $tag->{$key});
             }
         }
         else {

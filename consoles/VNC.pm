@@ -492,8 +492,6 @@ sub send_key_event_down ($self, $key) { $self->_send_key_event(1, $key) }
 
 sub send_key_event_up ($self, $key) { $self->_send_key_event(0, $key) }
 
-## no critic (HashKeyQuotes)
-
 my $keymap_x11 = {
     'esc' => 0xff1b,
     'down' => 0xff54,
@@ -646,7 +644,8 @@ sub init_ikvm_keymap ($self) {
         $keymap{"f$key"} = 0x3a + $key - 1,;
     }
     my %map = %{shift_keys()};
-    while (my ($key, $shift) = each %map) {
+    foreach my $key (keys %map) {
+        my $shift = $map{$key};
         die_on_invalid_mapping($key) unless $keymap{$shift};
         $keymap{$key} = [$keymap{shift}, $keymap{$shift}];
     }
