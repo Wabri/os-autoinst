@@ -383,7 +383,7 @@ sub provide_image_vmware_in_ds ($self, $input_file, $vmware_openqa_datastore, %a
     return $dest_image;
 }
 
-sub _copy_image_vmware ($self, $name, $backingfile, $file_basename, $vmware_openqa_datastore, $vmware_disk_path, $vmware_disk_path_thinfile) {
+sub _copy_image_vmware ($self, $name, $backingfile, $file_basename, $vmware_openqa_datastore, $vmware_disk_path, $vmware_disk_path_thinfile, $copy_timeout = 600) {
     # If the file exists, make sure someone else is not copying it there right now,
     # otherwise copy image from NFS datastore.
     my $nfs_dir = $backingfile ? 'hdd' : 'iso';
@@ -398,7 +398,7 @@ sub _copy_image_vmware ($self, $name, $backingfile, $file_basename, $vmware_open
       'else ' .
       "cp /vmfs/volumes/$vmware_nfs_datastore/$nfs_dir/$file_basename $vmware_openqa_datastore;" .
       'fi;';
-    my $retval = $self->run_cmd($cmd, domain => 'sshVMwareServer');
+    my $retval = $self->run_cmd($cmd, domain => 'sshVMwareServer', timeout => $copy_timeout);
     die "Can't copy VMware image $file_basename" if $retval;
     return unless $backingfile;
     # Power VM off, delete it's disk image, and create it again.
