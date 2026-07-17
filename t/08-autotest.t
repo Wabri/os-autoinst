@@ -83,37 +83,40 @@ $mock_basetest->noop('_result_add_screenshot');
 my $mock_autotest = Test::MockModule->new('autotest', no_auto => 1);
 $mock_autotest->noop('_terminate');
 
+subtest 'load_test && run_all' => sub {
+    my ($died, $completed);
+    like warning {
+        stderr_like { autotest::run_all } qr/Sending tests_done/, 'tests_done sent';
+    }, qr/ERROR: no tests loaded/, 'run_all outputs status on stderr';
+
+    ($died, $completed) = get_tests_done;
+    is $died, 1, 'run_all with no tests should catch runalltests dying';
+    is $completed, 0, 'run_all with no tests should not complete';
+
+    loadtest 'start';
+    loadtest 'next';
+    is keys %autotest::tests, 2, 'two tests have been scheduled';
+    loadtest 'start', 'rescheduling same step later';
+    is keys %autotest::tests, 3, 'three steps have been scheduled (one twice)' or always_explain %autotest::tests;
+    is $autotest::tests{'tests-start1'}->{name}, 'start#1', 'handle duplicate tests';
+    is $autotest::tests{'tests-start1'}->{fullname}, 'tests-start#1', 'duplicate test has correct fullname';
+    is $autotest::tests{'tests-start1'}->{$_}, $autotest::tests{'tests-start'}->{$_}, "duplicate tests point to the same $_"
+      for qw(script category class);
+
+    like warning {
+        stderr_like { autotest::run_all } qr/Sending tests_done/, 'tests_done sent';
+    }, qr/isotovideo.*not initialized/, 'autotest methods need a valid isotovideo socket';
+
+    @sent = ();
+    $autotest::isotovideo = 1;
+    stderr_like { autotest::run_all } qr/finished/, 'run_all outputs status on stderr';
+    ($died, $completed) = get_tests_done;
+    is $died, 0, 'start+next+start should not die';
+    is $completed, 1, 'start+next+start should complete';
+};
+
 my $died;
 my $completed;
-like warning {
-    stderr_like { autotest::run_all } qr/Sending tests_done/, 'tests_done sent';
-}, qr/ERROR: no tests loaded/, 'run_all outputs status on stderr';
-
-($died, $completed) = get_tests_done;
-is $died, 1, 'run_all with no tests should catch runalltests dying';
-is $completed, 0, 'run_all with no tests should not complete';
-
-loadtest 'start';
-loadtest 'next';
-is keys %autotest::tests, 2, 'two tests have been scheduled';
-loadtest 'start', 'rescheduling same step later';
-is keys %autotest::tests, 3, 'three steps have been scheduled (one twice)' or always_explain %autotest::tests;
-is $autotest::tests{'tests-start1'}->{name}, 'start#1', 'handle duplicate tests';
-is $autotest::tests{'tests-start1'}->{fullname}, 'tests-start#1', 'duplicate test has correct fullname';
-is $autotest::tests{'tests-start1'}->{$_}, $autotest::tests{'tests-start'}->{$_}, "duplicate tests point to the same $_"
-  for qw(script category class);
-
-like warning {
-    stderr_like { autotest::run_all } qr/Sending tests_done/, 'tests_done sent';
-}, qr/isotovideo.*not initialized/, 'autotest methods need a valid isotovideo socket';
-
-@sent = ();
-$autotest::isotovideo = 1;
-stderr_like { autotest::run_all } qr/finished/, 'run_all outputs status on stderr';
-($died, $completed) = get_tests_done;
-is $died, 0, 'start+next+start should not die';
-is $completed, 1, 'start+next+start should complete';
-
 # Test loading snapshots with always_rollback flag. Have to put it here, before loading
 # runargs test module, as it fails.
 my ($reverts_done, $snapshots_made) = (0, 0);
