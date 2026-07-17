@@ -115,8 +115,6 @@ subtest 'load_test && run_all' => sub {
     is $completed, 1, 'start+next+start should complete';
 };
 
-my $died;
-my $completed;
 # Test loading snapshots with always_rollback flag. Have to put it here, before loading
 # runargs test module, as it fails.
 my ($reverts_done, $snapshots_made) = (0, 0);
@@ -129,6 +127,7 @@ $mock_basetest->noop('record_resultfile');
 sub snapshot_subtest ($name, $sub) { subtest $name, $sub; $reverts_done = $snapshots_made = 0; @sent = () }
 
 subtest 'test always_rollback flag' => sub {
+    my ($died, $completed);
     snapshot_subtest 'no rollback is triggered when flag is not explicitly set to true' => sub {
         stderr_like { autotest::run_all } qr/finished/, 'run_all outputs status on stderr';
         ($died, $completed) = get_tests_done;
@@ -248,24 +247,28 @@ subtest 'test always_rollback flag' => sub {
     $mock_autotest->unmock($_) for qw(load_snapshot make_snapshot query_isotovideo);
 };
 
-my $targs = OpenQA::Test::RunArgs->new();
-stderr_like {
-    autotest::loadtest('tests/run_args.pm', name => 'alt_name', run_args => $targs)
-}
-qr@scheduling alt_name tests/run_args.pm@;
-stderr_like { autotest::run_all } qr/finished alt_name tests/, 'dynamic scheduled alt_name shows up';
-($died, $completed) = get_tests_done;
-is $died, 0, 'run_args test should not die';
-is $completed, 1, 'run_args test should complete';
+subtest run_args => sub {
+    my ($died, $completed);
+    my $targs = OpenQA::Test::RunArgs->new();
+    stderr_like {
+        autotest::loadtest('tests/run_args.pm', name => 'alt_name', run_args => $targs)
+    }
+    qr@scheduling alt_name tests/run_args.pm@;
+    stderr_like { autotest::run_all } qr/finished alt_name tests/, 'dynamic scheduled alt_name shows up';
+    ($died, $completed) = get_tests_done;
+    is $died, 0, 'run_args test should not die';
+    is $completed, 1, 'run_args test should complete';
 
-stderr_like { autotest::loadtest('tests/run_args.pm', name => 'alt_name') } qr@scheduling alt_name tests/run_args.pm@;
-stderr_like { autotest::run_all } qr/Snapshots are not supported/, 'run_all outputs status on stderr';
-($died, $completed) = get_tests_done;
-is $died, 0, 'run_args test should not die if there is no run_args';
-is $completed, 0, 'run_args test should not complete if there is no run_args';
+    stderr_like { autotest::loadtest('tests/run_args.pm', name => 'alt_name') } qr@scheduling alt_name tests/run_args.pm@;
+    stderr_like { autotest::run_all } qr/Snapshots are not supported/, 'run_all outputs status on stderr';
+    ($died, $completed) = get_tests_done;
+    is $died, 0, 'run_args test should not die if there is no run_args';
+    is $completed, 0, 'run_args test should not complete if there is no run_args';
 
-throws_ok { autotest::loadtest('tests/run_args.pm', name => 'alt_name', run_args => {foo => 'bar'}) } qr/The run_args must be a sub-class of OpenQA::Test::RunArgs/, 'error message mentions RunArgs';
+    throws_ok { autotest::loadtest('tests/run_args.pm', name => 'alt_name', run_args => {foo => 'bar'}) } qr/The run_args must be a sub-class of OpenQA::Test::RunArgs/, 'error message mentions RunArgs';
 
+};
+my ($died, $completed);
 # now let's make the tests fail...but so far none is fatal. We also
 # have to mock query_isotovideo so we think snapshots are supported.
 # we cause the failure by mocking runtest rather than using a test
