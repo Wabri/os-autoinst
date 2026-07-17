@@ -80,10 +80,10 @@ my $mock_basetest = Test::MockModule->new('basetest');
 $mock_basetest->noop('_result_add_screenshot');
 # stop `run_all` from calling `Devel::Cover::report()` and quitting at the end
 # note: We are not calling `run_all` from a sub process here so the extra coverage collection must *not* run.
-my $mock_autotest = Test::MockModule->new('autotest', no_auto => 1);
-$mock_autotest->noop('_terminate');
 
 subtest 'load_test && run_all' => sub {
+    my $mock_autotest = Test::MockModule->new('autotest', no_auto => 1);
+    $mock_autotest->noop('_terminate');
     my ($died, $completed);
     like warning {
         stderr_like { autotest::run_all } qr/Sending tests_done/, 'tests_done sent';
@@ -118,15 +118,17 @@ subtest 'load_test && run_all' => sub {
 # Test loading snapshots with always_rollback flag. Have to put it here, before loading
 # runargs test module, as it fails.
 my ($reverts_done, $snapshots_made) = (0, 0);
-# uncoverable statement count:2
-$mock_autotest->redefine(load_snapshot => sub { $reverts_done++ });
-$mock_autotest->redefine(make_snapshot => sub { $snapshots_made++ });
-$mock_autotest->redefine(query_isotovideo => 0);
 $mock_basetest->redefine(test_flags => {milestone => 1});
 $mock_basetest->noop('record_resultfile');
 sub snapshot_subtest ($name, $sub) { subtest $name, $sub; $reverts_done = $snapshots_made = 0; @sent = () }
 
 subtest 'test always_rollback flag' => sub {
+    my $mock_autotest = Test::MockModule->new('autotest', no_auto => 1);
+    $mock_autotest->noop('_terminate');
+    # uncoverable statement count:2
+    $mock_autotest->redefine(load_snapshot => sub { $reverts_done++ });
+    $mock_autotest->redefine(make_snapshot => sub { $snapshots_made++ });
+    $mock_autotest->redefine(query_isotovideo => 0);
     my ($died, $completed);
     snapshot_subtest 'no rollback is triggered when flag is not explicitly set to true' => sub {
         stderr_like { autotest::run_all } qr/finished/, 'run_all outputs status on stderr';
@@ -244,10 +246,14 @@ subtest 'test always_rollback flag' => sub {
         like $w, qr/always_rollback requested but snapshots are not supported by the backend/, 'fails with explicit error message';
     };
     $mock_basetest->unmock($_) for qw(runtest test_flags);
-    $mock_autotest->unmock($_) for qw(load_snapshot make_snapshot query_isotovideo);
+    undef $mock_autotest;
+#    $mock_autotest->unmock($_) for qw(load_snapshot make_snapshot query_isotovideo);
 };
 
+
 subtest run_args => sub {
+    my $mock_autotest = Test::MockModule->new('autotest', no_auto => 1);
+    $mock_autotest->noop('_terminate');
     my ($died, $completed);
     my $targs = OpenQA::Test::RunArgs->new();
     stderr_like {
@@ -275,11 +281,13 @@ subtest run_args => sub {
 # dies that we may not want to run into here
 $mock_basetest->redefine(runtest => sub { die 'oh noes!' });
 my $enable_snapshots = 1;
-$mock_autotest->redefine(query_isotovideo => sub ($command, $arguments) {
-        $command eq 'backend_can_handle' && $arguments->{function} eq 'snapshots' ? $enable_snapshots : 1;
-});
 
 subtest 'failing tests' => sub {
+    my $mock_autotest = Test::MockModule->new('autotest', no_auto => 1);
+    $mock_autotest->noop('_terminate');
+    $mock_autotest->redefine(query_isotovideo => sub ($command, $arguments) {
+            $command eq 'backend_can_handle' && $arguments->{function} eq 'snapshots' ? $enable_snapshots : 1;
+    });
     my ($died, $completed);
     my $record_resultfile_called;
     $mock_basetest->redefine(record_resultfile => sub { ++$record_resultfile_called });
@@ -394,6 +402,11 @@ subtest 'scheduling rules' => sub {
 
 
 subtest 'test scheduling test modules at test runtime' => sub {
+    my $mock_autotest = Test::MockModule->new('autotest', no_auto => 1);
+    $mock_autotest->noop('_terminate');
+    $mock_autotest->redefine(query_isotovideo => sub ($command, $arguments) {
+            $command eq 'backend_can_handle' && $arguments->{function} eq 'snapshots' ? $enable_snapshots : 1;
+    });
     $autotest::tests_running = 0;
     @autotest::testorder = ();
     %autotest::tests = ();
@@ -509,7 +522,6 @@ subtest 'pausing on failure' => sub {
 };
 
 subtest rollback_activated_consoles => sub {
-    $mock_autotest->unmock('query_isotovideo');
 
     $autotest::activated_consoles = ['activated_console'];
     $autotest::last_milestone_console = 'last_milestone_console';
@@ -608,6 +620,8 @@ subtest 'python modules with same filename' => sub {
 };
 
 subtest 'start_process' => sub {
+    my $mock_autotest = Test::MockModule->new('autotest', no_auto => 1);
+    $mock_autotest->noop('_terminate');
     my $fh = path(\'fake-file')->open('<');
     $autotest::isotovideo = $fh;
     # Test the start_process subroutine
@@ -624,6 +638,8 @@ subtest 'start_process' => sub {
 };
 
 subtest 'lua_use' => sub {
+    my $mock_autotest = Test::MockModule->new('autotest', no_auto => 1);
+    $mock_autotest->noop('_terminate');
     my $lua_vars = {};
     $mock_autotest->mock('lua_set' => sub ($k, $v) { $lua_vars->{$k} = $v; });
     autotest::_lua_use('testapi');
