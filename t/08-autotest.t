@@ -266,9 +266,8 @@ subtest run_args => sub {
     is $completed, 0, 'run_args test should not complete if there is no run_args';
 
     throws_ok { autotest::loadtest('tests/run_args.pm', name => 'alt_name', run_args => {foo => 'bar'}) } qr/The run_args must be a sub-class of OpenQA::Test::RunArgs/, 'error message mentions RunArgs';
-
 };
-my ($died, $completed);
+
 # now let's make the tests fail...but so far none is fatal. We also
 # have to mock query_isotovideo so we think snapshots are supported.
 # we cause the failure by mocking runtest rather than using a test
@@ -280,84 +279,87 @@ $mock_autotest->redefine(query_isotovideo => sub ($command, $arguments) {
         $command eq 'backend_can_handle' && $arguments->{function} eq 'snapshots' ? $enable_snapshots : 1;
 });
 
-my $record_resultfile_called;
-$mock_basetest->redefine(record_resultfile => sub { ++$record_resultfile_called });
-stderr_like { autotest::run_all } qr/oh noes/, 'run_all outputs status on stderr';
-($died, $completed) = get_tests_done;
-is $died, 0, 'non-fatal test failure should not die';
-is $completed, 1, 'non-fatal test failure should complete';
-is $record_resultfile_called, 4, 'record_resultfile was called';
+subtest 'failing tests' => sub {
+    my ($died, $completed);
+    my $record_resultfile_called;
+    $mock_basetest->redefine(record_resultfile => sub { ++$record_resultfile_called });
+    stderr_like { autotest::run_all } qr/oh noes/, 'run_all outputs status on stderr';
+    ($died, $completed) = get_tests_done;
+    is $died, 0, 'non-fatal test failure should not die';
+    is $completed, 1, 'non-fatal test failure should complete';
+    is $record_resultfile_called, 4, 'record_resultfile was called';
 
-# now let's add an ignore_failure test
-loadtest 'ignore_failure';
-stderr_like { autotest::run_all } qr/oh noes/, 'run_all outputs status on stderr';
-($died, $completed) = get_tests_done;
-is $died, 0, 'unimportant test failure should not die';
-is $completed, 1, 'unimportant test failure should complete';
+    # now let's add an ignore_failure test
+    loadtest 'ignore_failure';
+    stderr_like { autotest::run_all } qr/oh noes/, 'run_all outputs status on stderr';
+    ($died, $completed) = get_tests_done;
+    is $died, 0, 'unimportant test failure should not die';
+    is $completed, 1, 'unimportant test failure should complete';
 
-# unmock runtest, to fail in search_for_expected_serial_failures
-$mock_basetest->unmock('runtest');
-# mock reading of the serial output
-$mock_basetest->redefine(search_for_expected_serial_failures => sub ($self) {
-        $self->{fatal_failure} = 1;
-        die 'Got serial hard failure';
-});
+    # unmock runtest, to fail in search_for_expected_serial_failures
+    $mock_basetest->unmock('runtest');
+    # mock reading of the serial output
+    $mock_basetest->redefine(search_for_expected_serial_failures => sub ($self) {
+            $self->{fatal_failure} = 1;
+            die 'Got serial hard failure';
+    });
 
-$bmwqemu::vars{MAKETESTSNAPSHOTS} = 1;
-stderr_like { autotest::run_all } qr/Snapshots are supported/, 'run_all outputs status on stderr';
-($died, $completed) = get_tests_done;
-is $died, 0, 'fatal serial failure test should not die';
-is $completed, 0, 'fatal serial failure test should not complete';
-$bmwqemu::vars{MAKETESTSNAPSHOTS} = 0;
-# make the serial failure non-fatal
-$mock_basetest->unmock('search_for_expected_serial_failures');
-$mock_basetest->redefine(search_for_expected_serial_failures => sub ($self) {
-        $self->{fatal_failure} = 0;
-        die 'Got serial hard failure';
-});
+    $bmwqemu::vars{MAKETESTSNAPSHOTS} = 1;
+    stderr_like { autotest::run_all } qr/Snapshots are supported/, 'run_all outputs status on stderr';
+    ($died, $completed) = get_tests_done;
+    is $died, 0, 'fatal serial failure test should not die';
+    is $completed, 0, 'fatal serial failure test should not complete';
+    $bmwqemu::vars{MAKETESTSNAPSHOTS} = 0;
+    # make the serial failure non-fatal
+    $mock_basetest->unmock('search_for_expected_serial_failures');
+    $mock_basetest->redefine(search_for_expected_serial_failures => sub ($self) {
+            $self->{fatal_failure} = 0;
+            die 'Got serial hard failure';
+    });
 
-$autotest::current_test = Test::MockObject->new->set_true('record_resultfile');
-stderr_like { autotest::run_all } qr/Snapshots are supported/, 'run_all outputs status on stderr';
-($died, $completed) = get_tests_done;
-is $died, 0, 'non-fatal serial failure test should not die';
-is $completed, 1, 'non-fatal serial failure test should complete';
+    $autotest::current_test = Test::MockObject->new->set_true('record_resultfile');
+    stderr_like { autotest::run_all } qr/Snapshots are supported/, 'run_all outputs status on stderr';
+    ($died, $completed) = get_tests_done;
+    is $died, 0, 'non-fatal serial failure test should not die';
+    is $completed, 1, 'non-fatal serial failure test should complete';
 
-# disable snapshots and clean last milestone from previous testrun (with had snapshots enabled)
-$enable_snapshots = 0;
-$autotest::last_milestone = undef;
+    # disable snapshots and clean last milestone from previous testrun (with had snapshots enabled)
+    $enable_snapshots = 0;
+    $autotest::last_milestone = undef;
 
-my $output = combined_from(sub { autotest::run_all });
-like $output, qr/Snapshots are not supported/, 'snapshots actually disabled';
-unlike $output, qr/Loading a VM snapshot/, 'no attempt to load VM snapshot';
-($died, $completed) = get_tests_done;
-is $died, 0, 'non-fatal serial failure test should not die';
-is $completed, 0, 'non-fatal serial failure test should not complete by default without snapshot support';
+    my $output = combined_from(sub { autotest::run_all });
+    like $output, qr/Snapshots are not supported/, 'snapshots actually disabled';
+    unlike $output, qr/Loading a VM snapshot/, 'no attempt to load VM snapshot';
+    ($died, $completed) = get_tests_done;
+    is $died, 0, 'non-fatal serial failure test should not die';
+    is $completed, 0, 'non-fatal serial failure test should not complete by default without snapshot support';
 
-$mock_basetest->redefine(test_flags => {fatal => 0});
-$output = combined_from(sub { autotest::run_all });
-like $output, qr/Snapshots are not supported/, 'snapshots actually disabled';
-unlike $output, qr/Loading a VM snapshot/, 'no attempt to load VM snapshot';
-($died, $completed) = get_tests_done;
-is $died, 0, 'non-fatal serial failure test should not die';
-is $completed, 1, 'non-fatal serial failure test should complete with {fatal => 0} and not snapshot support';
+    $mock_basetest->redefine(test_flags => {fatal => 0});
+    $output = combined_from(sub { autotest::run_all });
+    like $output, qr/Snapshots are not supported/, 'snapshots actually disabled';
+    unlike $output, qr/Loading a VM snapshot/, 'no attempt to load VM snapshot';
+    ($died, $completed) = get_tests_done;
+    is $died, 0, 'non-fatal serial failure test should not die';
+    is $completed, 1, 'non-fatal serial failure test should complete with {fatal => 0} and not snapshot support';
 
-# Revert mock for runtest and remove mock for search_for_expected_serial_failures
-$mock_basetest->unmock('search_for_expected_serial_failures');
-$mock_basetest->unmock('test_flags');
-$mock_basetest->redefine(runtest => sub { die "oh noes!\n"; });
+    # Revert mock for runtest and remove mock for search_for_expected_serial_failures
+    $mock_basetest->unmock('search_for_expected_serial_failures');
+    $mock_basetest->unmock('test_flags');
+    $mock_basetest->redefine(runtest => sub { die "oh noes!\n"; });
 
-# now let's add a fatal test
-loadtest 'fatal';
-stderr_like { autotest::run_all } qr/oh noes/, 'run_all outputs status on stderr';
-($died, $completed) = get_tests_done;
-is $died, 0, 'fatal test failure should not die';
-is $completed, 0, 'fatal test failure should not complete';
+    # now let's add a fatal test
+    loadtest 'fatal';
+    stderr_like { autotest::run_all } qr/oh noes/, 'run_all outputs status on stderr';
+    ($died, $completed) = get_tests_done;
+    is $died, 0, 'fatal test failure should not die';
+    is $completed, 0, 'fatal test failure should not complete';
 
-loadtest 'fatal', 'rescheduling same step later' for 1 .. 10;
-my @opts = qw(script fullname category class);
-is @{$autotest::tests{'tests-fatal'}}{@opts}, @{$autotest::tests{'tests-fatal' . $_}}{@opts}, "tests-fatal$_ share same options with tests-fatal"
-  and is $autotest::tests{'tests-fatal' . $_}->{name}, 'fatal#' . $_
-  for 1 .. 10;
+    loadtest 'fatal', 'rescheduling same step later' for 1 .. 10;
+    my @opts = qw(script fullname category class);
+    is @{$autotest::tests{'tests-fatal'}}{@opts}, @{$autotest::tests{'tests-fatal' . $_}}{@opts}, "tests-fatal$_ share same options with tests-fatal"
+      and is $autotest::tests{'tests-fatal' . $_}->{name}, 'fatal#' . $_
+      for 1 .. 10;
+};
 
 subtest 'scheduling rules' => sub {
     %autotest::tests = ();
