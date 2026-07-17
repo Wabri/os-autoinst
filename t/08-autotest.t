@@ -76,56 +76,60 @@ my $mock_bmwqemu = Test::MockModule->new('bmwqemu');
 my $vm_stopped = 0;
 $mock_bmwqemu->noop('save_json_file');
 $mock_bmwqemu->redefine(stop_vm => sub { $vm_stopped = 1 });
-my $mock_basetest = Test::MockModule->new('basetest');
-$mock_basetest->noop('_result_add_screenshot');
 # stop `run_all` from calling `Devel::Cover::report()` and quitting at the end
 # note: We are not calling `run_all` from a sub process here so the extra coverage collection must *not* run.
-my $mock_autotest = Test::MockModule->new('autotest', no_auto => 1);
-$mock_autotest->noop('_terminate');
 
-my $died;
-my $completed;
-like warning {
-    stderr_like { autotest::run_all } qr/Sending tests_done/, 'tests_done sent';
-}, qr/ERROR: no tests loaded/, 'run_all outputs status on stderr';
+subtest 'load_test && run_all' => sub {
+    my $mock_autotest = Test::MockModule->new('autotest', no_auto => 1);
+    $mock_autotest->noop('_terminate');
+    my ($died, $completed);
+    like warning {
+        stderr_like { autotest::run_all } qr/Sending tests_done/, 'tests_done sent';
+    }, qr/ERROR: no tests loaded/, 'run_all outputs status on stderr';
 
-($died, $completed) = get_tests_done;
-is $died, 1, 'run_all with no tests should catch runalltests dying';
-is $completed, 0, 'run_all with no tests should not complete';
+    ($died, $completed) = get_tests_done;
+    is $died, 1, 'run_all with no tests should catch runalltests dying';
+    is $completed, 0, 'run_all with no tests should not complete';
 
-loadtest 'start';
-loadtest 'next';
-is keys %autotest::tests, 2, 'two tests have been scheduled';
-loadtest 'start', 'rescheduling same step later';
-is keys %autotest::tests, 3, 'three steps have been scheduled (one twice)' or always_explain %autotest::tests;
-is $autotest::tests{'tests-start1'}->{name}, 'start#1', 'handle duplicate tests';
-is $autotest::tests{'tests-start1'}->{fullname}, 'tests-start#1', 'duplicate test has correct fullname';
-is $autotest::tests{'tests-start1'}->{$_}, $autotest::tests{'tests-start'}->{$_}, "duplicate tests point to the same $_"
-  for qw(script category class);
+    loadtest 'start';
+    loadtest 'next';
+    is keys %autotest::tests, 2, 'two tests have been scheduled';
+    loadtest 'start', 'rescheduling same step later';
+    is keys %autotest::tests, 3, 'three steps have been scheduled (one twice)' or always_explain %autotest::tests;
+    is $autotest::tests{'tests-start1'}->{name}, 'start#1', 'handle duplicate tests';
+    is $autotest::tests{'tests-start1'}->{fullname}, 'tests-start#1', 'duplicate test has correct fullname';
+    is $autotest::tests{'tests-start1'}->{$_}, $autotest::tests{'tests-start'}->{$_}, "duplicate tests point to the same $_"
+      for qw(script category class);
 
-like warning {
-    stderr_like { autotest::run_all } qr/Sending tests_done/, 'tests_done sent';
-}, qr/isotovideo.*not initialized/, 'autotest methods need a valid isotovideo socket';
+    like warning {
+        stderr_like { autotest::run_all } qr/Sending tests_done/, 'tests_done sent';
+    }, qr/isotovideo.*not initialized/, 'autotest methods need a valid isotovideo socket';
 
-@sent = ();
-$autotest::isotovideo = 1;
-stderr_like { autotest::run_all } qr/finished/, 'run_all outputs status on stderr';
-($died, $completed) = get_tests_done;
-is $died, 0, 'start+next+start should not die';
-is $completed, 1, 'start+next+start should complete';
+    @sent = ();
+    $autotest::isotovideo = 1;
+    stderr_like { autotest::run_all } qr/finished/, 'run_all outputs status on stderr';
+    ($died, $completed) = get_tests_done;
+    is $died, 0, 'start+next+start should not die';
+    is $completed, 1, 'start+next+start should complete';
+};
 
 # Test loading snapshots with always_rollback flag. Have to put it here, before loading
 # runargs test module, as it fails.
 my ($reverts_done, $snapshots_made) = (0, 0);
-# uncoverable statement count:2
-$mock_autotest->redefine(load_snapshot => sub { $reverts_done++ });
-$mock_autotest->redefine(make_snapshot => sub { $snapshots_made++ });
-$mock_autotest->redefine(query_isotovideo => 0);
-$mock_basetest->redefine(test_flags => {milestone => 1});
-$mock_basetest->noop('record_resultfile');
 sub snapshot_subtest ($name, $sub) { subtest $name, $sub; $reverts_done = $snapshots_made = 0; @sent = () }
 
 subtest 'test always_rollback flag' => sub {
+    my $mock_basetest = Test::MockModule->new('basetest');
+    $mock_basetest->noop('_result_add_screenshot');
+    $mock_basetest->redefine(test_flags => {milestone => 1});
+    $mock_basetest->noop('record_resultfile');
+    my $mock_autotest = Test::MockModule->new('autotest', no_auto => 1);
+    $mock_autotest->noop('_terminate');
+    # uncoverable statement count:2
+    $mock_autotest->redefine(load_snapshot => sub { $reverts_done++ });
+    $mock_autotest->redefine(make_snapshot => sub { $snapshots_made++ });
+    $mock_autotest->redefine(query_isotovideo => 0);
+    my ($died, $completed);
     snapshot_subtest 'no rollback is triggered when flag is not explicitly set to true' => sub {
         stderr_like { autotest::run_all } qr/finished/, 'run_all outputs status on stderr';
         ($died, $completed) = get_tests_done;
@@ -241,117 +245,132 @@ subtest 'test always_rollback flag' => sub {
         stderr_like { $w = warning { autotest::run_all } } qr/Snapshots are not supported/, 'run_all outputs on stderr';
         like $w, qr/always_rollback requested but snapshots are not supported by the backend/, 'fails with explicit error message';
     };
-    $mock_basetest->unmock($_) for qw(runtest test_flags);
-    $mock_autotest->unmock($_) for qw(load_snapshot make_snapshot query_isotovideo);
+    undef $mock_autotest;
+    undef $mock_basetest;
 };
 
-my $targs = OpenQA::Test::RunArgs->new();
-stderr_like {
-    autotest::loadtest('tests/run_args.pm', name => 'alt_name', run_args => $targs)
-}
-qr@scheduling alt_name tests/run_args.pm@;
-stderr_like { autotest::run_all } qr/finished alt_name tests/, 'dynamic scheduled alt_name shows up';
-($died, $completed) = get_tests_done;
-is $died, 0, 'run_args test should not die';
-is $completed, 1, 'run_args test should complete';
 
-stderr_like { autotest::loadtest('tests/run_args.pm', name => 'alt_name') } qr@scheduling alt_name tests/run_args.pm@;
-stderr_like { autotest::run_all } qr/Snapshots are not supported/, 'run_all outputs status on stderr';
-($died, $completed) = get_tests_done;
-is $died, 0, 'run_args test should not die if there is no run_args';
-is $completed, 0, 'run_args test should not complete if there is no run_args';
+subtest run_args => sub {
+    my $mock_autotest = Test::MockModule->new('autotest', no_auto => 1);
+    $mock_autotest->noop('_terminate');
+    my ($died, $completed);
+    my $targs = OpenQA::Test::RunArgs->new();
+    stderr_like {
+        autotest::loadtest('tests/run_args.pm', name => 'alt_name', run_args => $targs)
+    }
+    qr@scheduling alt_name tests/run_args.pm@;
+    stderr_like { autotest::run_all } qr/finished alt_name tests/, 'dynamic scheduled alt_name shows up';
+    ($died, $completed) = get_tests_done;
+    is $died, 0, 'run_args test should not die';
+    is $completed, 1, 'run_args test should complete';
 
-throws_ok { autotest::loadtest('tests/run_args.pm', name => 'alt_name', run_args => {foo => 'bar'}) } qr/The run_args must be a sub-class of OpenQA::Test::RunArgs/, 'error message mentions RunArgs';
+    stderr_like { autotest::loadtest('tests/run_args.pm', name => 'alt_name') } qr@scheduling alt_name tests/run_args.pm@;
+    stderr_like { autotest::run_all } qr/Snapshots are not supported/, 'run_all outputs status on stderr';
+    ($died, $completed) = get_tests_done;
+    is $died, 0, 'run_args test should not die if there is no run_args';
+    is $completed, 0, 'run_args test should not complete if there is no run_args';
+
+    throws_ok { autotest::loadtest('tests/run_args.pm', name => 'alt_name', run_args => {foo => 'bar'}) } qr/The run_args must be a sub-class of OpenQA::Test::RunArgs/, 'error message mentions RunArgs';
+};
 
 # now let's make the tests fail...but so far none is fatal. We also
 # have to mock query_isotovideo so we think snapshots are supported.
 # we cause the failure by mocking runtest rather than using a test
 # which dies, as runtest does a whole bunch of stuff when the test
 # dies that we may not want to run into here
-$mock_basetest->redefine(runtest => sub { die 'oh noes!' });
 my $enable_snapshots = 1;
-$mock_autotest->redefine(query_isotovideo => sub ($command, $arguments) {
-        $command eq 'backend_can_handle' && $arguments->{function} eq 'snapshots' ? $enable_snapshots : 1;
-});
 
-my $record_resultfile_called;
-$mock_basetest->redefine(record_resultfile => sub { ++$record_resultfile_called });
-stderr_like { autotest::run_all } qr/oh noes/, 'run_all outputs status on stderr';
-($died, $completed) = get_tests_done;
-is $died, 0, 'non-fatal test failure should not die';
-is $completed, 1, 'non-fatal test failure should complete';
-is $record_resultfile_called, 4, 'record_resultfile was called';
+subtest 'failing tests' => sub {
+    my $mock_basetest = Test::MockModule->new('basetest');
+    $mock_basetest->noop('_result_add_screenshot');
+    $mock_basetest->redefine(test_flags => {milestone => 1});
+    $mock_basetest->noop('record_resultfile');
+    $mock_basetest->redefine(runtest => sub { die 'oh noes!' });
+    my $mock_autotest = Test::MockModule->new('autotest', no_auto => 1);
+    $mock_autotest->noop('_terminate');
+    $mock_autotest->redefine(query_isotovideo => sub ($command, $arguments) {
+            $command eq 'backend_can_handle' && $arguments->{function} eq 'snapshots' ? $enable_snapshots : 1;
+    });
+    my ($died, $completed);
+    my $record_resultfile_called;
+    $mock_basetest->redefine(record_resultfile => sub { ++$record_resultfile_called });
+    stderr_like { autotest::run_all } qr/oh noes/, 'run_all outputs status on stderr';
+    ($died, $completed) = get_tests_done;
+    is $died, 0, 'non-fatal test failure should not die';
+    is $completed, 1, 'non-fatal test failure should complete';
+    is $record_resultfile_called, 4, 'record_resultfile was called';
 
-# now let's add an ignore_failure test
-loadtest 'ignore_failure';
-stderr_like { autotest::run_all } qr/oh noes/, 'run_all outputs status on stderr';
-($died, $completed) = get_tests_done;
-is $died, 0, 'unimportant test failure should not die';
-is $completed, 1, 'unimportant test failure should complete';
+    # now let's add an ignore_failure test
+    loadtest 'ignore_failure';
+    stderr_like { autotest::run_all } qr/oh noes/, 'run_all outputs status on stderr';
+    ($died, $completed) = get_tests_done;
+    is $died, 0, 'unimportant test failure should not die';
+    is $completed, 1, 'unimportant test failure should complete';
 
-# unmock runtest, to fail in search_for_expected_serial_failures
-$mock_basetest->unmock('runtest');
-# mock reading of the serial output
-$mock_basetest->redefine(search_for_expected_serial_failures => sub ($self) {
-        $self->{fatal_failure} = 1;
-        die 'Got serial hard failure';
-});
+    # unmock runtest, to fail in search_for_expected_serial_failures
+    $mock_basetest->unmock('runtest');
+    # mock reading of the serial output
+    $mock_basetest->redefine(search_for_expected_serial_failures => sub ($self) {
+            $self->{fatal_failure} = 1;
+            die 'Got serial hard failure';
+    });
 
-$bmwqemu::vars{MAKETESTSNAPSHOTS} = 1;
-stderr_like { autotest::run_all } qr/Snapshots are supported/, 'run_all outputs status on stderr';
-($died, $completed) = get_tests_done;
-is $died, 0, 'fatal serial failure test should not die';
-is $completed, 0, 'fatal serial failure test should not complete';
-$bmwqemu::vars{MAKETESTSNAPSHOTS} = 0;
-# make the serial failure non-fatal
-$mock_basetest->unmock('search_for_expected_serial_failures');
-$mock_basetest->redefine(search_for_expected_serial_failures => sub ($self) {
-        $self->{fatal_failure} = 0;
-        die 'Got serial hard failure';
-});
+    $bmwqemu::vars{MAKETESTSNAPSHOTS} = 1;
+    stderr_like { autotest::run_all } qr/Snapshots are supported/, 'run_all outputs status on stderr';
+    ($died, $completed) = get_tests_done;
+    is $died, 0, 'fatal serial failure test should not die';
+    is $completed, 0, 'fatal serial failure test should not complete';
+    $bmwqemu::vars{MAKETESTSNAPSHOTS} = 0;
+    # make the serial failure non-fatal
+    $mock_basetest->unmock('search_for_expected_serial_failures');
+    $mock_basetest->redefine(search_for_expected_serial_failures => sub ($self) {
+            $self->{fatal_failure} = 0;
+            die 'Got serial hard failure';
+    });
 
-$autotest::current_test = Test::MockObject->new->set_true('record_resultfile');
-stderr_like { autotest::run_all } qr/Snapshots are supported/, 'run_all outputs status on stderr';
-($died, $completed) = get_tests_done;
-is $died, 0, 'non-fatal serial failure test should not die';
-is $completed, 1, 'non-fatal serial failure test should complete';
+    $autotest::current_test = Test::MockObject->new->set_true('record_resultfile');
+    stderr_like { autotest::run_all } qr/Snapshots are supported/, 'run_all outputs status on stderr';
+    ($died, $completed) = get_tests_done;
+    is $died, 0, 'non-fatal serial failure test should not die';
+    is $completed, 1, 'non-fatal serial failure test should complete';
 
-# disable snapshots and clean last milestone from previous testrun (with had snapshots enabled)
-$enable_snapshots = 0;
-$autotest::last_milestone = undef;
+    # disable snapshots and clean last milestone from previous testrun (with had snapshots enabled)
+    $enable_snapshots = 0;
+    $autotest::last_milestone = undef;
 
-my $output = combined_from(sub { autotest::run_all });
-like $output, qr/Snapshots are not supported/, 'snapshots actually disabled';
-unlike $output, qr/Loading a VM snapshot/, 'no attempt to load VM snapshot';
-($died, $completed) = get_tests_done;
-is $died, 0, 'non-fatal serial failure test should not die';
-is $completed, 0, 'non-fatal serial failure test should not complete by default without snapshot support';
+    my $output = combined_from(sub { autotest::run_all });
+    like $output, qr/Snapshots are not supported/, 'snapshots actually disabled';
+    unlike $output, qr/Loading a VM snapshot/, 'no attempt to load VM snapshot';
+    ($died, $completed) = get_tests_done;
+    is $died, 0, 'non-fatal serial failure test should not die';
+    is $completed, 0, 'non-fatal serial failure test should not complete by default without snapshot support';
 
-$mock_basetest->redefine(test_flags => {fatal => 0});
-$output = combined_from(sub { autotest::run_all });
-like $output, qr/Snapshots are not supported/, 'snapshots actually disabled';
-unlike $output, qr/Loading a VM snapshot/, 'no attempt to load VM snapshot';
-($died, $completed) = get_tests_done;
-is $died, 0, 'non-fatal serial failure test should not die';
-is $completed, 1, 'non-fatal serial failure test should complete with {fatal => 0} and not snapshot support';
+    $mock_basetest->redefine(test_flags => {fatal => 0});
+    $output = combined_from(sub { autotest::run_all });
+    like $output, qr/Snapshots are not supported/, 'snapshots actually disabled';
+    unlike $output, qr/Loading a VM snapshot/, 'no attempt to load VM snapshot';
+    ($died, $completed) = get_tests_done;
+    is $died, 0, 'non-fatal serial failure test should not die';
+    is $completed, 1, 'non-fatal serial failure test should complete with {fatal => 0} and not snapshot support';
 
-# Revert mock for runtest and remove mock for search_for_expected_serial_failures
-$mock_basetest->unmock('search_for_expected_serial_failures');
-$mock_basetest->unmock('test_flags');
-$mock_basetest->redefine(runtest => sub { die "oh noes!\n"; });
+    # Revert mock for runtest and remove mock for search_for_expected_serial_failures
+    $mock_basetest->unmock('search_for_expected_serial_failures');
+    $mock_basetest->unmock('test_flags');
+    $mock_basetest->redefine(runtest => sub { die "oh noes!\n"; });
 
-# now let's add a fatal test
-loadtest 'fatal';
-stderr_like { autotest::run_all } qr/oh noes/, 'run_all outputs status on stderr';
-($died, $completed) = get_tests_done;
-is $died, 0, 'fatal test failure should not die';
-is $completed, 0, 'fatal test failure should not complete';
+    # now let's add a fatal test
+    loadtest 'fatal';
+    stderr_like { autotest::run_all } qr/oh noes/, 'run_all outputs status on stderr';
+    ($died, $completed) = get_tests_done;
+    is $died, 0, 'fatal test failure should not die';
+    is $completed, 0, 'fatal test failure should not complete';
 
-loadtest 'fatal', 'rescheduling same step later' for 1 .. 10;
-my @opts = qw(script fullname category class);
-is @{$autotest::tests{'tests-fatal'}}{@opts}, @{$autotest::tests{'tests-fatal' . $_}}{@opts}, "tests-fatal$_ share same options with tests-fatal"
-  and is $autotest::tests{'tests-fatal' . $_}->{name}, 'fatal#' . $_
-  for 1 .. 10;
+    loadtest 'fatal', 'rescheduling same step later' for 1 .. 10;
+    my @opts = qw(script fullname category class);
+    is @{$autotest::tests{'tests-fatal'}}{@opts}, @{$autotest::tests{'tests-fatal' . $_}}{@opts}, "tests-fatal$_ share same options with tests-fatal"
+      and is $autotest::tests{'tests-fatal' . $_}->{name}, 'fatal#' . $_
+      for 1 .. 10;
+};
 
 subtest 'scheduling rules' => sub {
     %autotest::tests = ();
@@ -386,6 +405,16 @@ subtest 'scheduling rules' => sub {
 
 
 subtest 'test scheduling test modules at test runtime' => sub {
+    my $mock_basetest = Test::MockModule->new('basetest');
+    $mock_basetest->noop('_result_add_screenshot');
+    $mock_basetest->noop('record_resultfile');
+    $mock_basetest->redefine(runtest => sub { die 'oh noes!' });
+
+    my $mock_autotest = Test::MockModule->new('autotest', no_auto => 1);
+    $mock_autotest->noop('_terminate');
+    $mock_autotest->redefine(query_isotovideo => sub ($command, $arguments) {
+            $command eq 'backend_can_handle' && $arguments->{function} eq 'snapshots' ? $enable_snapshots : 1;
+    });
     $autotest::tests_running = 0;
     @autotest::testorder = ();
     %autotest::tests = ();
@@ -461,6 +490,9 @@ subtest 'python run_args' => sub {
 };
 
 subtest 'python with bad run method' => sub {
+    my $mock_basetest = Test::MockModule->new('basetest');
+    $mock_basetest->noop('record_resultfile');
+
     plan skip_all => 'Inline::Python is not available' unless $has_python;
 
     %autotest::tests = ();
@@ -501,7 +533,6 @@ subtest 'pausing on failure' => sub {
 };
 
 subtest rollback_activated_consoles => sub {
-    $mock_autotest->unmock('query_isotovideo');
 
     $autotest::activated_consoles = ['activated_console'];
     $autotest::last_milestone_console = 'last_milestone_console';
@@ -600,6 +631,8 @@ subtest 'python modules with same filename' => sub {
 };
 
 subtest 'start_process' => sub {
+    my $mock_autotest = Test::MockModule->new('autotest', no_auto => 1);
+    $mock_autotest->noop('_terminate');
     my $fh = path(\'fake-file')->open('<');
     $autotest::isotovideo = $fh;
     # Test the start_process subroutine
@@ -616,6 +649,8 @@ subtest 'start_process' => sub {
 };
 
 subtest 'lua_use' => sub {
+    my $mock_autotest = Test::MockModule->new('autotest', no_auto => 1);
+    $mock_autotest->noop('_terminate');
     my $lua_vars = {};
     $mock_autotest->mock('lua_set' => sub ($k, $v) { $lua_vars->{$k} = $v; });
     autotest::_lua_use('testapi');
