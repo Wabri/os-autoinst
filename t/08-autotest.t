@@ -76,8 +76,6 @@ my $mock_bmwqemu = Test::MockModule->new('bmwqemu');
 my $vm_stopped = 0;
 $mock_bmwqemu->noop('save_json_file');
 $mock_bmwqemu->redefine(stop_vm => sub { $vm_stopped = 1 });
-my $mock_basetest = Test::MockModule->new('basetest');
-$mock_basetest->noop('_result_add_screenshot');
 # stop `run_all` from calling `Devel::Cover::report()` and quitting at the end
 # note: We are not calling `run_all` from a sub process here so the extra coverage collection must *not* run.
 
@@ -118,11 +116,13 @@ subtest 'load_test && run_all' => sub {
 # Test loading snapshots with always_rollback flag. Have to put it here, before loading
 # runargs test module, as it fails.
 my ($reverts_done, $snapshots_made) = (0, 0);
-$mock_basetest->redefine(test_flags => {milestone => 1});
-$mock_basetest->noop('record_resultfile');
 sub snapshot_subtest ($name, $sub) { subtest $name, $sub; $reverts_done = $snapshots_made = 0; @sent = () }
 
 subtest 'test always_rollback flag' => sub {
+    my $mock_basetest = Test::MockModule->new('basetest');
+    $mock_basetest->noop('_result_add_screenshot');
+    $mock_basetest->redefine(test_flags => {milestone => 1});
+    $mock_basetest->noop('record_resultfile');
     my $mock_autotest = Test::MockModule->new('autotest', no_auto => 1);
     $mock_autotest->noop('_terminate');
     # uncoverable statement count:2
@@ -245,9 +245,8 @@ subtest 'test always_rollback flag' => sub {
         stderr_like { $w = warning { autotest::run_all } } qr/Snapshots are not supported/, 'run_all outputs on stderr';
         like $w, qr/always_rollback requested but snapshots are not supported by the backend/, 'fails with explicit error message';
     };
-    $mock_basetest->unmock($_) for qw(runtest test_flags);
     undef $mock_autotest;
-#    $mock_autotest->unmock($_) for qw(load_snapshot make_snapshot query_isotovideo);
+    undef $mock_basetest;
 };
 
 
@@ -279,10 +278,14 @@ subtest run_args => sub {
 # we cause the failure by mocking runtest rather than using a test
 # which dies, as runtest does a whole bunch of stuff when the test
 # dies that we may not want to run into here
-$mock_basetest->redefine(runtest => sub { die 'oh noes!' });
 my $enable_snapshots = 1;
 
 subtest 'failing tests' => sub {
+    my $mock_basetest = Test::MockModule->new('basetest');
+    $mock_basetest->noop('_result_add_screenshot');
+    $mock_basetest->redefine(test_flags => {milestone => 1});
+    $mock_basetest->noop('record_resultfile');
+    $mock_basetest->redefine(runtest => sub { die 'oh noes!' });
     my $mock_autotest = Test::MockModule->new('autotest', no_auto => 1);
     $mock_autotest->noop('_terminate');
     $mock_autotest->redefine(query_isotovideo => sub ($command, $arguments) {
@@ -402,6 +405,11 @@ subtest 'scheduling rules' => sub {
 
 
 subtest 'test scheduling test modules at test runtime' => sub {
+    my $mock_basetest = Test::MockModule->new('basetest');
+    $mock_basetest->noop('_result_add_screenshot');
+    $mock_basetest->noop('record_resultfile');
+    $mock_basetest->redefine(runtest => sub { die 'oh noes!' });
+
     my $mock_autotest = Test::MockModule->new('autotest', no_auto => 1);
     $mock_autotest->noop('_terminate');
     $mock_autotest->redefine(query_isotovideo => sub ($command, $arguments) {
@@ -482,6 +490,9 @@ subtest 'python run_args' => sub {
 };
 
 subtest 'python with bad run method' => sub {
+    my $mock_basetest = Test::MockModule->new('basetest');
+    $mock_basetest->noop('record_resultfile');
+
     plan skip_all => 'Inline::Python is not available' unless $has_python;
 
     %autotest::tests = ();
