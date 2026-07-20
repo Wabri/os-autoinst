@@ -784,6 +784,14 @@ subtest 'special cases when starting QEMU' => sub {
     unlike $qemu_params, qr{order=}, 'order parameter not present due to PXEBOOT';
     like $qemu_params, qr{once=n}, 'once=n parameter present due to PXEBOOT';
 
+    @qemu_params = ();
+    $bmwqemu::vars{PXEBOOT} = 0;
+    $bmwqemu::vars{UEFI} = 0;
+    $bmwqemu::vars{BIOS} = 'bios.bin';
+    combined_like { $backend->start_qemu } qr{.+}s, 'invoked with legacy BIOS';
+    $qemu_params = Mojo::Collection->new(\@qemu_params)->flatten->join(' ');
+    like $qemu_params, qr{bios /usr/share/qemu/bios\.bin}, 'bios parameter correctly configured';
+
     subtest 'various error cases' => sub {
         my %initial_vars = %bmwqemu::vars;
         $bmwqemu::vars{NICTYPE} = 'foo';
